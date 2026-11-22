@@ -20,7 +20,7 @@ import { spawn } from 'node:child_process';
 import { rmSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { CDP, fetchPageTarget } from 'file:///C:/Users/57891/tong-xiangjie.github.io/chat-demo-v0.1.2/tools/minimal-cdp.mjs';
+import { CDP, fetchPageTarget, findBrowser } from './minimal-cdp.mjs';
 
 const TARGET = process.argv[2] ||
   'file:///C:/Users/57891/tong-xiangjie.github.io/chat-demo-v0.1.2/index.html';
@@ -38,7 +38,7 @@ function check(name, ok, extra) {
 }
 
 const profile = mkdtempSync(join(tmpdir(), 'cdp-f5-'));
-const chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+const chrome = spawn(findBrowser(),
   [`--remote-debugging-port=${PORT}`, `--user-data-dir=${profile}`, '--headless=new',
    '--disable-gpu', '--no-first-run', '--window-size=1400,900', '--hide-scrollbars', TARGET],
   { stdio: 'ignore' });

@@ -17,7 +17,7 @@ import { readFileSync, existsSync, rmSync, mkdtempSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { CDP, fetchPageTarget } from './minimal-cdp.mjs';
+import { CDP, fetchPageTarget, findBrowser } from './minimal-cdp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8893;
@@ -142,14 +142,9 @@ const server = http.createServer((req, res) => {
 
 await new Promise((r) => server.listen(PORT, '127.0.0.1', r));
 
-const chromePath = [
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe'
-].find((p) => existsSync(p));
-
 const profile = mkdtempSync(join(tmpdir(), 'cdp-apibase-'));
 const chrome = spawn(
-  chromePath,
+  findBrowser(),
   [
     `--remote-debugging-port=${CDP_PORT}`,
     `--user-data-dir=${profile}`,

@@ -9,14 +9,14 @@ import { spawn } from 'node:child_process';
 import { rmSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { CDP, fetchPageTarget } from './minimal-cdp.mjs';
+import { CDP, fetchPageTarget, findBrowser } from './minimal-cdp.mjs';
 
 const URL_LIVE = 'https://tong-xiangjie.github.io/chat-demo-v0.1.2/';
 const CDP_PORT = 9410;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const profile = mkdtempSync(join(tmpdir(), 'cdp-live-'));
-const chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+const chrome = spawn(findBrowser(),
   [`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${profile}`, '--headless=new', '--disable-gpu',
    '--no-first-run', '--window-size=1400,900', '--hide-scrollbars', URL_LIVE], { stdio: 'ignore' });
 const target = await fetchPageTarget(CDP_PORT);

@@ -22,7 +22,7 @@ import { readFileSync, existsSync, rmSync, mkdtempSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { CDP, fetchPageTarget } from './minimal-cdp.mjs';
+import { CDP, fetchPageTarget, findBrowser } from './minimal-cdp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = 8901;
@@ -174,7 +174,7 @@ function mkSession(id, title, now, tag) {
 
 const profile = mkdtempSync(join(tmpdir(), 'cdp-rev-'));
 const cdpPort = await waitFreePort(9391);
-const chrome = spawn('C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+const chrome = spawn(findBrowser(),
   [`--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profile}`, '--headless=new', '--disable-gpu',
    '--no-first-run', '--window-size=1400,900', `http://127.0.0.1:${PORT}/index.html`], { stdio: 'ignore' });
 const target = await fetchPageTarget(cdpPort);

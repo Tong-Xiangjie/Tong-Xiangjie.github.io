@@ -513,5 +513,56 @@ if (typeof __b64ToBlobForTest === 'function' && typeof __blobToB64ForTest === 'f
     (await zhBack.text()) === zhText, await zhBack.text());
 }
 
+// ---------------------------------------------------------------------------
+// 导入的合并决策：绝不能覆盖用户更新的内容
+//
+// 用户问的正是"会覆盖还是替换"。答案是**逐条合并**：
+//   · 备份里更新的 → 覆盖这一条
+//   · 本地更新的   → 跳过，不动
+//   · 备份里没有的 → 完全不动（不是整库替换）
+// 这几条如果写反，用户"导出一份旧备份再导入"就会把自己的新对话倒退回去，
+// 而且不会有任何提示 —— 所以必须逐条钉住。
+// ---------------------------------------------------------------------------
+
+const { __planImportMergeForTest } = api;
+check('导入合并决策接口已暴露', typeof __planImportMergeForTest === 'function');
+
+if (typeof __planImportMergeForTest === 'function') {
+  const mk = (id, updatedAt, title) => ({ id, updatedAt, title, messages: [] });
+
+  // 本地有 A(100)、B(500)；备份里有 A(200)、B(400)、C(300)
+  const local = [mk('A', 100, '本地A'), mk('B', 500, '本地B')];
+  const incoming = [mk('A', 200, '备份A'), mk('B', 400, '备份B'), mk('C', 300, '备份C')];
+  const plan = __planImportMergeForTest(local, incoming);
+  const written = plan.toWrite.map((s) => s.id).sort();
+
+  eq('★ 备份更新的覆盖（A）、本地更新的跳过（B）、新增的收下（C）',
+    written, ['A', 'C']);
+  eq('跳过计数正确（B 被跳过）', plan.skipped, 1);
+
+  check('★ 被覆盖的那条用的是备份内容',
+    plan.toWrite.find((s) => s.id === 'A').title === '备份A');
+  check('★ 本地更新的那条没有被写回（内容不会被倒退）',
+    plan.toWrite.every((s) => s.id !== 'B'));
+
+  // 时间戳相同：不该无谓地覆盖（否则每次导入都产生一次写库+刷新）
+  const same = __planImportMergeForTest([mk('X', 100)], [mk('X', 100)]);
+  check('★ 时间戳相同时跳过，不做无意义的覆盖', same.toWrite.length === 0 && same.skipped === 1);
+
+  // 备份里没有的本地对话：必须原样保留（这就是"合并"而非"替换"）
+  const keep = __planImportMergeForTest([mk('local-only', 1)], [mk('other', 999)]);
+  check('★ 备份里没有的本地对话不会被删（是合并不是替换）',
+    keep.toWrite.length === 1 && keep.toWrite[0].id === 'other');
+
+  // 缺 updatedAt 不能当成"更新"，否则会把本地内容冲掉
+  const noTs = __planImportMergeForTest([mk('Y', 100)], [{ id: 'Y', title: '无时间戳', messages: [] }]);
+  check('★ 备份缺少 updatedAt 时按"不更新"处理，不覆盖本地',
+    noTs.toWrite.length === 0 && noTs.skipped === 1);
+
+  // 没有 id 的垃圾数据要跳过，不能写进库
+  const junk = __planImportMergeForTest([], [{ title: '没有id', messages: [] }]);
+  check('没有 id 的条目被忽略', junk.toWrite.length === 0);
+}
+
 console.log(`\n结果: ${passed} 通过, ${failed} 失败\n`);
 process.exit(failed ? 1 : 0);

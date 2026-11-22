@@ -19,7 +19,7 @@ import { readFileSync, existsSync, rmSync, mkdtempSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { CDP, fetchPageTarget } from './minimal-cdp.mjs';
+import { CDP, fetchPageTarget, findBrowser } from './minimal-cdp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const HEADED = process.argv.includes('--headed');
@@ -114,16 +114,8 @@ function startServer() {
   );
 }
 
-function findChrome() {
-  const candidates = [
-    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
-  ];
-  for (const c of candidates) if (existsSync(c)) return c;
-  throw new Error('找不到 Chrome / Edge');
-}
+// 浏览器路径统一由 minimal-cdp 的 findBrowser() 提供（Chrome 优先，退到 Edge），
+// 不再在本文件里维护第二份候选列表。
 
 function launchChrome(profile) {
   const args = [
@@ -137,7 +129,7 @@ function launchChrome(profile) {
     `http://127.0.0.1:${PORT}/index.html`
   ];
   if (!HEADED) args.unshift('--headless=new', '--disable-gpu');
-  return spawn(findChrome(), args, { stdio: 'ignore' });
+  return spawn(findBrowser(), args, { stdio: 'ignore' });
 }
 
 // ---------------------------------------------------------------------------
@@ -187,7 +179,17 @@ try {
   // 新开的 Chrome 往往还在首帧导航，此时 evaluate 会撞上
   // 「Execution context was destroyed」。这里做重试包装。
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // 出错时把"是哪一段注入代码挂的"打出来。
+  // 只靠 CDP 给的 <anonymous>:11 完全定位不到 —— 每个注入块的行号都从 1 开始，
+  // 排查时只能靠这段上下文。
+  let evalSeq = 0;
+  function evalLabel(expr) {
+    const line = expr.split('\n').map((s) => s.trim())
+      .find((s) => s && !s.startsWith('(') && !s.startsWith('{'));
+    return (line || expr.trim().slice(0, 60)).slice(0, 90);
+  }
   async function evaluateStable(expression, attempts = 6) {
+    const seq = ++evalSeq;
     let lastErr;
     for (let i = 0; i < attempts; i++) {
       try {
@@ -200,7 +202,10 @@ try {
           msg.includes('Cannot find context') ||
           msg.includes('Target closed') ||
           msg.includes('Inspected target navigated');
-        if (!retriable) throw e;
+        if (!retriable) {
+          console.log(`  [eval#${seq} 出错] ${evalLabel(expression)}`);
+          throw e;
+        }
         await sleep(500);
       }
     }
@@ -226,388 +231,6 @@ try {
   check('浏览器支持 File System Access API', supportsFs === true, String(supportsFs));
 
   // -------------------------------------------------------------------------
-  // 注入模拟目录句柄（内存文件系统，接口与真实句柄一致）
-  // -------------------------------------------------------------------------
-  await evaluateStable(`
-    (() => {
-      const bucket = {};
-      window.__fsBucket = bucket;
-
-      function makeDir(prefix) {
-        return {
-          kind: 'directory',
-          name: prefix === '' ? ${JSON.stringify(DIR_NAME)} : prefix.split('/').filter(Boolean).pop(),
-          async getDirectoryHandle(child, opts) {
-            const key = prefix + child + '/';
-            if (bucket[key] === undefined) {
-              if (!opts || !opts.create) {
-                const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
-              }
-              bucket[key] = true;
-            }
-            return makeDir(prefix + child + '/');
-          },
-          async getFileHandle(fname, opts) {
-            const key = prefix + fname;
-            if (bucket[key] === undefined && !(opts && opts.create)) {
-              const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
-            }
-            return {
-              kind: 'file',
-              name: fname,
-              async createWritable() {
-                let buf = '';
-                return {
-                  write: async (d) => { buf += typeof d === 'string' ? d : '[blob]'; },
-                  close: async () => { bucket[key] = buf; }
-                };
-              },
-              async getFile() { return new File([bucket[key] || ''], fname); }
-            };
-          },
-          async removeEntry(fname) { delete bucket[prefix + fname]; },
-          async *values() {
-            for (const k of Object.keys(bucket)) {
-              if (!k.startsWith(prefix)) continue;
-              const rest = k.slice(prefix.length);
-              if (!rest || rest.includes('/')) continue;
-              if (bucket[k] === true) yield { kind: 'directory', name: rest };
-              else yield { kind: 'file', name: rest };
-            }
-          },
-          async queryPermission() { return 'granted'; },
-          async requestPermission() { return 'granted'; }
-        };
-      }
-      window.__fakeRoot = makeDir('');
-      return true;
-    })()
-  `);
-  console.log('（已注入模拟目录句柄：写入内存而非真实磁盘）\n');
-
-  // -------------------------------------------------------------------------
-  // 造数据：一个带分支的消息树
-  // -------------------------------------------------------------------------
-  await evaluateStable(`
-    (async () => {
-      const open = () => new Promise((res, rej) => {
-        const r = indexedDB.open('chat-demo', 11);
-        r.onupgradeneeded = () => {
-          const db = r.result;
-          for (const s of ['sessions','files','sessionsStaging','filesStaging']) {
-            if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
-          }
-          if (!db.objectStoreNames.contains('sessionSummaries')) {
-            const st = db.createObjectStore('sessionSummaries', { keyPath: 'id' });
-            st.createIndex('fileIds', 'fileIds', { multiEntry: true });
-          }
-        };
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
-      });
-      const db = await open();
-      const now = Date.now();
-      const session = {
-        id: 'sess-test-1',
-        title: '测试对话：正则表达式',
-        createdAt: now - 60000,
-        updatedAt: now,
-        rootMessageId: 'm1',
-        messages: [
-          { id: 'm1', role: 'user', content: '帮我写个匹配邮箱的正则', files: [],
-            createdAt: now - 60000, parentId: null, selectedChildId: 'm2' },
-          // 真实结构：助手消息用 blocks（不是 content / 顶层 text）
-          { id: 'm2', role: 'assistant', model: 'deepseek-flash', serverModel: 'deepseek-v4-pro',
-            createdAt: now - 50000, parentId: 'm1', selectedChildId: null, status: 'done',
-            blocks: [{ type: 'text', text: '可以用 /^[^@]+@[^@]+\\\\.[^@]+$/', citations: [] }] },
-          // 未选中的旧版本，用于验证「分支不丢失且不混入」
-          { id: 'm3', role: 'assistant', model: 'deepseek-flash',
-            createdAt: now - 55000, parentId: 'm1', selectedChildId: null, status: 'done',
-            blocks: [{ type: 'text', text: '旧版本回答文字' }] }
-        ]
-      };
-      await new Promise((res, rej) => {
-        const tx = db.transaction(['sessions','sessionSummaries'], 'readwrite');
-        tx.objectStore('sessions').put(session);
-        tx.objectStore('sessionSummaries').put({
-          id: session.id, title: session.title, createdAt: session.createdAt,
-          updatedAt: session.updatedAt, fileIds: []
-        });
-        tx.oncomplete = res;
-        tx.onerror = () => rej(tx.error);
-      });
-
-      // 再放两条附件：一张图片 + 一个**非图片**。
-      // 非图片过去只记元信息、原件不落盘；现在要求原件也写进 附件/。
-      if (db.objectStoreNames.contains('files')) {
-        await new Promise((res, rej) => {
-          const tx = db.transaction(['files'], 'readwrite');
-          tx.objectStore('files').put({
-            id: 'file-img-1', name: 'shot.png', size: 4, mimeType: 'image/png',
-            isImage: true, serverId: 'srv-img-1',
-            blob: new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'image/png' })
-          });
-          tx.objectStore('files').put({
-            id: 'file-pdf-1', name: '报告.pdf', size: 6, mimeType: 'application/pdf',
-            isImage: false, serverId: 'srv-pdf-1',
-            blob: new Blob([new Uint8Array([5, 6, 7, 8, 9, 10])], { type: 'application/pdf' })
-          });
-          // 没有原件的老记录：必须老实标记为未落盘，不能伪造
-          tx.objectStore('files').put({
-            id: 'file-old-1', name: 'notes.txt', size: 10, mimeType: 'text/plain',
-            isImage: false, serverId: 'srv-old-1'
-          });
-          tx.oncomplete = res;
-          tx.onerror = () => rej(tx.error);
-        });
-      }
-      return true;
-    })()
-  `);
-  check('已写入测试会话到 IndexedDB', true);
-
-  // -------------------------------------------------------------------------
-  // 核心：跑一次快照
-  // -------------------------------------------------------------------------
-  const snap = await evaluateStable(`
-    (async () => {
-      await window.__localstore.__setRootHandleForTest(window.__fakeRoot);
-      return await window.__localstore.snapshot('e2e');
-    })()
-  `);
-  check('快照执行成功', !!snap, JSON.stringify(snap));
-  check('快照统计到 1 个对话', snap && snap.sessionCount === 1, JSON.stringify(snap));
-
-  // -------------------------------------------------------------------------
-  // 回归：countLocalSessions 必须数的是**应用库**（chat-demo），不是桥接层自己的库
-  //
-  // 这里曾经写错库（用了 chat-demo-localstore，里面没有 sessions 表），
-  // 于是永远返回 -1。而 -1 在 maybeAutoRestoreHistory 里表示「数不出来，
-  // 按不安全处理」，直接导致**换浏览器 / 清空数据后自动恢复永远不执行** ——
-  // 用户看到的就是「换个浏览器记录不互联」。
-  //
-  // 断言要点：有会话时必须数得出正数，绝不能是 -1。
-  // -------------------------------------------------------------------------
-  const countWithSessions = await evaluateStable(
-    `window.__localstore.countLocalSessions()`
-  );
-  check(
-    'countLocalSessions 能数出应用库里的会话（不是 -1）',
-    typeof countWithSessions === 'number' && countWithSessions > 0,
-    String(countWithSessions)
-  );
-
-  const files = await evaluateStable('Object.keys(window.__fsBucket).sort()');
-  console.log('\n  生成的文件:');
-  files.forEach((f) => console.log('    ' + f));
-  console.log('');
-
-  // 注意：bucket 的键是相对存档根目录的路径（真实句柄的 values() 语义）
-  const has = (re) => files.some((f) => re.test(f));
-  check('生成了对话 Markdown', has(/^对话\/.*\.md$/));
-  check('生成了对话 JSON', has(/^对话\/.*\.json$/));
-  check('生成了索引 sessions.json', has(/^数据\/sessions\.json$/));
-  check('生成了 manifest.json', has(/^数据\/manifest\.json$/));
-  check('生成了顶层 README.md', has(/^README\.md$/));
-  check('生成了附件目录', has(/^附件\/$/));
-
-  // -------------------------------------------------------------------------
-  // 附件原件落盘：图片与非图片都要存
-  // -------------------------------------------------------------------------
-  console.log('\n[附件落盘]');
-  files.filter((f) => /^附件\//.test(f)).forEach((f) => console.log('    ' + f));
-
-  check('图片原件已落盘', has(/^附件\/file-img-1\.png$/));
-  check(
-    '非图片（PDF）原件也已落盘',
-    has(/^附件\/file-pdf-1\.pdf$/),
-    JSON.stringify(files.filter((f) => /^附件\//.test(f)))
-  );
-
-  const filesJsonRaw = await evaluateStable(
-    'window.__fsBucket[' + JSON.stringify('数据/files.json') + ']'
-  );
-  const filesJson = JSON.parse(filesJsonRaw);
-  // files.json 是一个**裸数组**（不是 {files:[...]}），与历史版本保持一致
-  const fileList = Array.isArray(filesJson) ? filesJson : filesJson.files || [];
-  const recOf = (id) => fileList.find((x) => x.id === id) || {};
-  console.log('    附件数: ' + fileList.length);
-  console.log('    files.json: ' + JSON.stringify(fileList));
-  check(
-    'PDF 记录里 storedAs 指向附件目录',
-    recOf('file-pdf-1').storedAs === '附件/file-pdf-1.pdf',
-    JSON.stringify(recOf('file-pdf-1'))
-  );
-  check(
-    'PDF 记录没有丢失元信息',
-    recOf('file-pdf-1').name === '报告.pdf' &&
-      recOf('file-pdf-1').mimeType === 'application/pdf',
-    JSON.stringify(recOf('file-pdf-1'))
-  );
-  // 没有原件的老记录不能假装存了
-  check(
-    '没有原件的记录 storedAs 为 null（不伪造）',
-    recOf('file-old-1').storedAs === null,
-    JSON.stringify(recOf('file-old-1'))
-  );
-  check(
-    '快照统计区分了「原件数」与「附件数」',
-    snap && snap.blobCount === 2 && snap.fileCount === 3 && snap.blobMissed === 1,
-    JSON.stringify({ blobCount: snap && snap.blobCount, fileCount: snap && snap.fileCount, blobMissed: snap && snap.blobMissed })
-  );
-
-  // 写进去的字节要能原样读回来
-  const pdfBytes = await evaluateStable(`
-    (() => {
-      const raw = window.__fsBucket[${JSON.stringify('附件/file-pdf-1.pdf')}];
-      if (raw == null) return null;
-      if (typeof raw === 'string') return raw.length;
-      return (raw.bytes && raw.bytes.length) || null;
-    })()
-  `);
-  console.log('    读回的 PDF 字节长度: ' + pdfBytes);
-  check('PDF 原件字节已写入内存文件系统', pdfBytes === 6, String(pdfBytes));
-
-  // -------------------------------------------------------------------------
-  // 校验 Markdown 内容
-  // -------------------------------------------------------------------------
-  const mdKey = files.find((f) => /^对话\/.*\.md$/.test(f));
-  const md = await evaluateStable(
-    'window.__fsBucket[' + JSON.stringify(mdKey) + ']'
-  );
-
-  check('Markdown 含标题', md.includes('# 测试对话：正则表达式'));
-  check('Markdown 标注了真实模型 deepseek-v4-pro', md.includes('deepseek-v4-pro'));
-  check('Markdown 含用户消息', md.includes('帮我写个匹配邮箱的正则'));
-  check('Markdown 含助手回答', md.includes('[^@]+@[^@]+'));
-  check('Markdown 只含被选中的分支', !md.includes('旧版本回答文字'));
-  check('Markdown 含角色标注', /## 我/.test(md) && /## DeepSeek/.test(md));
-
-  // -------------------------------------------------------------------------
-  // 校验 JSON 保留了全部分支
-  // -------------------------------------------------------------------------
-  const jsonKey = files.find((f) => /^对话\/.*\.json$/.test(f));
-  const parsed = JSON.parse(
-    await evaluateStable('window.__fsBucket[' + JSON.stringify(jsonKey) + ']')
-  );
-
-  check('JSON 保留全部 3 条消息（含未选分支）', parsed.messages.length === 3, String(parsed.messages.length));
-  check('JSON 顶层汇总了真实模型', Array.isArray(parsed.models) && parsed.models.includes('deepseek-v4-pro'), JSON.stringify(parsed.models));
-  check('JSON conversation 为选中路径（2 条）', parsed.conversation.length === 2, String(parsed.conversation.length));
-  check('JSON 带 schema 标识', parsed.schema === 'chat-demo-mirror/session@1');
-
-  // -------------------------------------------------------------------------
-  // 校验 manifest
-  // -------------------------------------------------------------------------
-  const manifest = JSON.parse(
-    await evaluateStable(`window.__fsBucket['数据/manifest.json']`)
-  );
-  check('manifest 记录文件夹名', manifest.folderName === '测试存档', manifest.folderName);
-  check('manifest 记录会话数', manifest.sessionCount === 1);
-  check('manifest 带同步时间', typeof manifest.lastSyncAt === 'number');
-
-  // -------------------------------------------------------------------------
-  // 增量对账：改名后重跑
-  // -------------------------------------------------------------------------
-  await evaluateStable(`
-    (async () => {
-      const r = indexedDB.open('chat-demo');
-      const db = await new Promise((res) => { r.onsuccess = () => res(r.result); });
-      await new Promise((res, rej) => {
-        const tx = db.transaction('sessions','readwrite');
-        const st = tx.objectStore('sessions');
-        const g = st.get('sess-test-1');
-        g.onsuccess = () => {
-          const s = g.result;
-          s.title = '改名之后的标题';
-          s.updatedAt = Date.now();
-          st.put(s);
-        };
-        tx.oncomplete = res;
-        tx.onerror = () => rej(tx.error);
-      });
-      return true;
-    })()
-  `);
-  await evaluateStable(`window.__localstore.snapshot('e2e-2')`);
-
-  const files2 = await evaluateStable('Object.keys(window.__fsBucket).sort()');
-  const mdCount = files2.filter((f) => /^对话\/.*\.md$/.test(f)).length;
-  const jsonCount = files2.filter((f) => /^对话\/.*\.json$/.test(f)).length;
-  check('改名后旧文件被清理（Markdown 仍只 1 份）', mdCount === 1, `实际 ${mdCount} 份`);
-  check('改名后旧文件被清理（JSON 仍只 1 份）', jsonCount === 1, `实际 ${jsonCount} 份`);
-
-  // ⚠ 这里以前断言"文件名跟着标题变成新标题"。
-  // 现在**故意不再改名**，改成"同一条对话永远落在同一个文件上"：
-  // 文件名按 updatedAt 生成，一旦改名，同一个会话在不同浏览器/不同时刻
-  // 就会算出不同文件名 —— 共用一个文件夹时就会**出现重复文件**，
-  // 而且先写的那份会变成孤儿被清理掉（实测：跨浏览器同步后对话成批消失）。
-  // 所以文件名只作为"稳定的存放位置"，标题以文件内容为准。
-  const jsonName = files2.find((f) => /^对话\/.*\.json$/.test(f));
-  const mirrorRaw = await evaluateStable(
-    `window.__fsBucket[${JSON.stringify(jsonName)}]`
-  );
-  const mirror = JSON.parse(mirrorRaw);
-  check(
-    '★ 改名后新标题写进了文件内容（标题以内容为准，不再靠改名）',
-    mirror && mirror.title === '改名之后的标题',
-    mirror && mirror.title
-  );
-  check(
-    '★ 同一条对话只产生一个文件（文件名保持稳定，避免跨浏览器重复）',
-    jsonCount === 1 && mdCount === 1,
-    `json=${jsonCount} md=${mdCount}`
-  );
-
-  // -------------------------------------------------------------------------
-  // 恢复：清空 IndexedDB 后从文件夹读回
-  // -------------------------------------------------------------------------
-  console.log('  [step] 清空浏览器数据库…');
-  await evaluateStable(`
-    (async () => {
-      const r = indexedDB.open('chat-demo');
-      const db = await new Promise((res) => { r.onsuccess = () => res(r.result); });
-      await new Promise((res, rej) => {
-        const tx = db.transaction(['sessions','sessionSummaries'],'readwrite');
-        tx.objectStore('sessions').clear();
-        tx.objectStore('sessionSummaries').clear();
-        tx.oncomplete = res;
-        tx.onerror = () => rej(tx.error);
-      });
-      return true;
-    })()
-  `);
-  // 注意：裸表达式里不能有顶层 await，必须包成 async IIFE
-  const empty = await evaluateStable(
-    '(async () => (await window.__localstore.readAllSessions()).length)()'
-  );
-  check('已清空浏览器数据库（模拟清缓存）', empty === 0, String(empty));
-
-  console.log('  [step] 从文件夹恢复…');
-  const restored = await evaluateStable(`window.__localstore.restoreFromFolder()`);
-  check('从文件夹恢复成功', !!restored && restored.sessions === 1, JSON.stringify(restored));
-
-  const after = await evaluateStable(`
-    (async () => {
-      const list = await window.__localstore.readAllSessions();
-      const s = list[0];
-      return {
-        count: list.length,
-        title: s && s.title,
-        messages: s ? s.messages.length : 0,
-        models: s
-          ? s.messages.map(function (m) { return m.serverModel || m.model; }).filter(Boolean)
-          : []
-      };
-    })()
-  `);
-
-  check('恢复后会话数正确', after.count === 1, String(after.count));
-  check('恢复后标题正确', after.title === '改名之后的标题', String(after.title));
-  check('恢复后消息数无损（3 条含分支）', after.messages === 3, String(after.messages));
-  check('恢复后模型信息保留', after.models.includes('deepseek-v4-pro'), JSON.stringify(after.models));
-
-  // -------------------------------------------------------------------------
   // 模型嗅探：拦截 fetch 读取 SSE 里的真实模型名
   // -------------------------------------------------------------------------
   const sniffed = await evaluateStable(`
@@ -620,29 +243,70 @@ try {
   check('fetch 嗅探到 SSE 中的真实模型', sniffed === 'deepseek-v4-pro', String(sniffed));
 
   // 验证模型会被写进会话记录
+  //
+  // ⚠ 这里必须**先自己造一条待写入的会话**。
+  // 踩过的坑：这段原来直接 get('sess-test-1')，而那条数据是靠套件前面
+  // 「快照落盘」那几节顺手写进去的 —— 文件夹功能删掉后那些节没了，
+  // get() 就返回 undefined，接着 put(undefined) 抛
+  // 「Evaluating the object store's key path did not yield a value」。
+  // 报错位置指向 put 那行，看起来像数据写错，其实是前置数据没了。
+  // 现在这条用例自带前置数据，不再依赖别的节。
   const attached = await evaluateStable(`
     (async () => {
-      const r = indexedDB.open('chat-demo');
-      const db = await new Promise((res) => { r.onsuccess = () => res(r.result); });
-      const s = await new Promise((res) => {
-        const g = db.transaction('sessions').objectStore('sessions').get('sess-test-1');
-        g.onsuccess = () => res(g.result);
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
       });
+
+      // 1) 先放一条"用户刚问完、助手刚答完但还没记模型"的会话
       await new Promise((res, rej) => {
-        const tx = db.transaction('sessions','readwrite');
-        tx.objectStore('sessions').put(s);
-        tx.oncomplete = res;
+        const tx = db.transaction('sessions', 'readwrite');
+        tx.objectStore('sessions').put({
+          id: 'model-attach-1', title: '模型归属测试', createdAt: 1, updatedAt: 2,
+          rootMessageId: 'mu',
+          messages: [
+            { id: 'mu', role: 'user', content: '你好' },
+            { id: 'ma', role: 'assistant', content: '你好！', parentId: 'mu' }
+          ]
+        });
+        tx.oncomplete = () => res();
         tx.onerror = () => rej(tx.error);
+        tx.onabort = () => rej(tx.error || new Error('abort'));
       });
-      const s2 = await new Promise((res) => {
-        const g = db.transaction('sessions').objectStore('sessions').get('sess-test-1');
+
+      // 2) 让 fetch hook 嗅到 SSE 里的真实模型名（pendingModel 被填上）
+      await fetch(${JSON.stringify(SSE_PATH)});
+      await new Promise((r) => setTimeout(r, 500));
+      const sniffed = window.__localstore.currentModel();
+
+      // 3) 模拟应用随后的落库：桥接层应把模型名补进助手消息
+      const s = await new Promise((res, rej) => {
+        const g = db.transaction('sessions').objectStore('sessions').get('model-attach-1');
         g.onsuccess = () => res(g.result);
+        g.onerror = () => rej(g.error);
+      });
+      if (!s) return { err: '前置会话没写进去' };
+      await new Promise((res, rej) => {
+        const tx = db.transaction('sessions', 'readwrite');
+        tx.objectStore('sessions').put(s);
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+        tx.onabort = () => rej(tx.error || new Error('abort'));
+      });
+
+      const s2 = await new Promise((res, rej) => {
+        const g = db.transaction('sessions').objectStore('sessions').get('model-attach-1');
+        g.onsuccess = () => res(g.result);
+        g.onerror = () => rej(g.error);
       });
       const last = s2.messages.filter((m) => m.role === 'assistant').pop();
-      return last ? last.serverModel || null : null;
+      db.close();
+      return { sniffed, serverModel: last ? last.serverModel || null : null };
     })()
   `);
-  check('真实模型被写入助手消息（serverModel）', attached === 'deepseek-v4-pro', String(attached));
+  check('真实模型被写入助手消息（serverModel）',
+    attached.serverModel === 'deepseek-v4-pro', JSON.stringify(attached));
 
   // -------------------------------------------------------------------------
   // 普通请求不应被 fetch hook 破坏
@@ -712,8 +376,13 @@ try {
   check('设置区块被挂载', sectionMounted.mounted === true);
   check('设置区块位于设置面板内容容器内', sectionMounted.insideContainer === true);
   check('包含 API 地址输入框', sectionMounted.hasApiInput === true);
-  check('包含本地文件夹区块', sectionMounted.text.includes('本地文件夹存储'));
-  check('包含 API Key 存文件夹区块', sectionMounted.text.includes('API Key 保存到文件夹'));
+  check('包含备份与恢复区块', sectionMounted.text.includes('备份与恢复'));
+  check('★ 不再包含文件夹存储区块（已整块移除）',
+    !sectionMounted.text.includes('本地文件夹存储'));
+  check('★ 不再包含「API Key 保存到文件夹」（已整块移除）',
+    !sectionMounted.text.includes('API Key 保存到文件夹'));
+  check('包含导出与导入按钮',
+    sectionMounted.text.includes('导出') && sectionMounted.text.includes('导入'));
   check('包含模型显示开关', sectionMounted.text.includes('模型显示'));
 
   // -------------------------------------------------------------------------
@@ -723,6 +392,49 @@ try {
     (async () => {
       // 清掉真实页面里的干扰节点，用与官方同名的 class 造两条消息
       document.querySelectorAll('.message-e1faee').forEach((n) => n.remove());
+
+      // ⚠ 必须先自己把"当前会话"造干净再断言。
+      // injectModelBadges 里有一道硬门槛：DOM 节点数必须等于该会话的线性消息数
+      //   if (nodes.length !== linear.length) return;
+      // 前面几节留下的会话会让"最后更新的那个会话"变成别的，节点数就对不上，
+      // 于是徽标一个都不注入 —— 表现为 badge.count === 0，很容易误判成注入坏了。
+      // 这里直接把 sessions 清空，只留一条"两条消息（user+assistant）"的会话。
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      await new Promise((res, rej) => {
+        const tx = db.transaction(['sessions', 'sessionSummaries'], 'readwrite');
+        tx.objectStore('sessions').clear();
+        tx.objectStore('sessionSummaries').clear();
+        tx.objectStore('sessions').put({
+          id: 'badge-1', title: '徽标测试', createdAt: 1, updatedAt: 999999,
+          rootMessageId: 'bu',
+          // ⚠ 消息树必须自洽，而且关键在于 **selectedChildId**：
+          // linearMessages 是顺着 selectedChildId 一条链走下来的
+          //   cursor = node.selectedChildId
+          // 只写 parentId 是不够的 —— 链会在根节点断掉，linear 只剩 1 条，
+          // 撞上 injectModelBadges 的
+          //   if (nodes.length !== linear.length) return;
+          // 于是徽标一个都不注入，看着像"注入坏了"，其实是测试数据不合规。
+          messages: [
+            { id: 'bu', role: 'user', content: '问一句', parentId: null,
+              selectedChildId: 'ba' },
+            { id: 'ba', role: 'assistant', content: '答一句', parentId: 'bu',
+              selectedChildId: null, serverModel: 'deepseek-v4-pro' }
+          ]
+        });
+        tx.objectStore('sessionSummaries').put({
+          id: 'badge-1', title: '徽标测试', createdAt: 1, updatedAt: 999999, fileIds: []
+        });
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+        tx.onabort = () => rej(tx.error || new Error('abort'));
+      });
+      db.close();
+      sessionStorage.removeItem('chat-demo:active');
+
       const wrap = document.createElement('div');
       wrap.id = 'fake-messages';
       for (const cls of ['user-msg', 'assistant-msg']) {
@@ -735,8 +447,10 @@ try {
       }
       document.body.appendChild(wrap);
 
-      // 让当前显示会话就是库里的那条（2 条线性消息：user + assistant）
       await window.__localstore.injectModelBadges();
+      // 给定时注入一次机会：应用里徽标是靠防抖排程注入的，
+      // 只调一次可能恰好在排程之前。
+      await new Promise((r) => setTimeout(r, 400));
 
       const badges = wrap.querySelectorAll('.ls-model-badge');
       return {
@@ -763,548 +477,381 @@ try {
   `);
   check('可写入自定义 API 地址', apiBaseOk === 'https://my-proxy.example.com/');
 
-  // -------------------------------------------------------------------------
-  // API Key 存到文件夹
-  // -------------------------------------------------------------------------
-  await evaluateStable(`localStorage.setItem('chat-demo:api-key', 'sk-test-key-12345')`);
-  const keySaved = await evaluateStable(`
-    (async () => {
-      try { await window.__localstore.writeKeyToFolder(); return 'ok'; }
-      catch (e) { return 'ERR:' + e.message; }
-    })()
-  `);
-  check('API Key 写入文件夹成功', keySaved === 'ok', keySaved);
-
-  const keyFile = await evaluateStable(`window.__fsBucket['数据/apikey.json']`);
-  check('密钥文件已生成', !!keyFile);
-  if (keyFile) {
-    const kp = JSON.parse(keyFile);
-    check('密钥文件内容正确', kp.apiKey === 'sk-test-key-12345', kp.apiKey);
-    check('密钥文件含明文警告', typeof kp.warning === 'string' && kp.warning.length > 0);
-  }
-
-  const keyRead = await evaluateStable(`
-    (async () => {
-      const p = await window.__localstore.readKeyFromFolder();
-      return p ? p.apiKey : null;
-    })()
-  `);
-  check('可从文件夹读回密钥', keyRead === 'sk-test-key-12345', String(keyRead));
-
-  // 回填：清掉浏览器里的 key，应能从文件夹恢复
-  const hydrate = await evaluateStable(`
-    (async () => {
-      localStorage.removeItem('chat-demo:api-key');
-      const ok = await window.__localstore.hydrateKeyFromFolder();
-      return { ok, key: localStorage.getItem('chat-demo:api-key') };
-    })()
-  `);
-  check(
-    '清空后可自动从文件夹回填密钥',
-    hydrate.ok === true && hydrate.key === 'sk-test-key-12345',
-    JSON.stringify(hydrate)
-  );
-
-  // -------------------------------------------------------------------------
-  // ★ 回归：换浏览器 / 清空数据后，连上文件夹要能把对话读回来 ★
+  // ★ 导出 / 导入：现在唯一的数据搬运通道 ★
   //
-  // 这是用户报的「我另外一个浏览器记录不互联」的正面用例。
-  //
-  // 曾经的真实 bug：countLocalSessions() 数的是桥接层自己的库
-  // （chat-demo-localstore，没有 sessions 表），永远返回 -1；
-  // 而 -1 在 maybeAutoRestoreHistory() 里表示「数不出来，按不安全处理」，
-  // 于是判断永远走成「本地已经有数据了，不要覆盖」，导入**从来没跑过**。
-  //
-  // 这里把真实链路完整跑一遍：
-  //   本地库清空（模拟新浏览器）→ 文件夹里有别人的存档 → 连接后应自动读回来。
-  // 覆盖 snapshot / 数据/sessions.json / 对话/*.json 的真实格式。
+  // 为什么这些用例重要：文件夹同步整块删掉之后，导出/导入就是用户**唯一**能把
+  // 对话搬去别的浏览器、或清数据前留备份的路。它一旦坏掉，数据就是真的丢。
+  // 而且它特别容易"看起来成功了" —— 所以这里全部走真实的往返。
   // -------------------------------------------------------------------------
-  console.log('\n[换浏览器] 新浏览器连上已有存档的文件夹，应把对话读回来\n');
+  console.log('\n[导出/导入] 备份往返必须无损\n');
 
-  // 1) 造一条"文件夹里才有"的新对话（独立 id，方便断言"是它被导入了"）
-  const freshTitle = '换浏览器导入验证：薛定谔的猫';
-  await evaluateStable(`
+  // 先把库清干净再放我们自己那两条。
+  // 前面几节（模型归属、模型徽标）都会往库里写东西，不清掉的话
+  // "导出应有 2 个对话"这类断言会被它们污染 —— 之前就踩到导出计数变成 3。
+  const cleared = await evaluateStable(`
     (async () => {
-      const open = () => new Promise((res, rej) => {
-        const r = indexedDB.open('chat-demo', 11);
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo');
         r.onsuccess = () => res(r.result);
         r.onerror = () => rej(r.error);
       });
-      const db = await open();
-      const now = Date.now();
-      const session = {
-        id: 'sess-fresh-1',
-        title: ${JSON.stringify(freshTitle)},
-        createdAt: now, updatedAt: now,
-        rootMessageId: 'f1',
-        messages: [
-          { id: 'f1', role: 'user', content: '文件夹里才有的问题', files: [],
-            createdAt: now, parentId: null, selectedChildId: 'f2' },
-          { id: 'f2', role: 'assistant', model: 'deepseek-flash',
-            serverModel: 'DeepSeek-V4.1-Flash',
-            createdAt: now, parentId: 'f1', selectedChildId: null, status: 'done',
-            blocks: [{ type: 'text', text: '文件夹里才有的回答', citations: [] }] }
-        ]
-      };
       await new Promise((res, rej) => {
-        const tx = db.transaction(['sessions','sessionSummaries'], 'readwrite');
-        tx.objectStore('sessions').put(session);
-        tx.objectStore('sessionSummaries').put({
-          id: session.id, title: session.title, createdAt: session.createdAt,
-          updatedAt: session.updatedAt, fileIds: []
-        });
-        tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+        const tx = db.transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite');
+        tx.objectStore('sessions').clear();
+        tx.objectStore('sessionSummaries').clear();
+        tx.objectStore('files').clear();
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+        tx.onabort = () => rej(tx.error || new Error('abort'));
       });
+      db.close();
       return true;
     })()
   `);
+  check('导出用例开始前库已清空（用例之间不互相污染）', cleared === true, String(cleared));
 
-  // 2) 落盘一次 —— 用 bridge 自己的快照写出真实格式的文件，
-  //    避免手写格式跟实现对不上（那会让测试变成"假阳性"）
-  await evaluateStable(`window.__localstore.snapshot('fresh-import-seed')`);
-  const seededFiles = await evaluateStable('Object.keys(window.__fsBucket).sort()');
-  const seededJson = seededFiles.filter((f) => /^对话\/.*\.json$/.test(f));
-  check(
-    '文件夹里已有本机与「新对话」的存档',
-    seededJson.length >= 2,
-    'json 文件: ' + JSON.stringify(seededJson)
-  );
-  check(
-    '存档里确实有那条「文件夹里才有」的对话',
-    seededFiles.some((f) => /^对话\/.*\.json$/.test(f)) &&
-      (await evaluateStable(`
-        Object.keys(window.__fsBucket).some(k =>
-          /^对话\\/.*\\.json$/.test(k) &&
-          String(window.__fsBucket[k]).indexOf(${JSON.stringify(freshTitle)}) >= 0)
-      `)) === true
-  );
-
-  // 3) 模拟新浏览器：清空本地库 + 清掉"同步过"的标记
-  const cleared = await evaluateStable(`
+  // 造两条对话 + 一个二进制附件
+  //
+  // ⚠ 必须**自己把 store 建对**，不能让 indexedDB.open 顺手建。
+  // 踩过的坑：测试里写 indexedDB.open('chat-demo', 11) 时，如果没有 onupgradeneeded，
+  // 浏览器会按默认规则建表 —— store 名叫 sessions，keyPath 就取 "sessions"。
+  // 于是后面 put({id:'exp-1'}) 直接抛
+  // 「Evaluating the object store's key path did not yield a value」，
+  // 而且报错位置指向 put 那行，很容易误以为是数据写错了。
+  // 官方/桥接层的真实建表是 keyPath:'id'（见 bundle 里的 upgrade 函数）。
+  const seedResult = await evaluateStable(`
     (async () => {
-      const open = () => new Promise((res, rej) => {
-        const r = indexedDB.open('chat-demo', 11);
+      const step = [];
+      const STORES = ['sessions', 'sessionSummaries', 'files'];
+
+      // 先不带版本号打开：拿到当前库（可能是官方建好的 11）
+      let db = await new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo');
         r.onsuccess = () => res(r.result);
         r.onerror = () => rej(r.error);
       });
-      const db = await open();
-      for (const store of ['sessions','sessionSummaries','files']) {
-        if (!db.objectStoreNames.contains(store)) continue;
-        await new Promise((res, rej) => {
-          const tx = db.transaction([store], 'readwrite');
-          tx.objectStore(store).clear();
-          tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+
+      // store 不存在、或 keyPath 不是 id（被误建过），就升一版按正确结构重建
+      const needsFix = STORES.some((n) => !db.objectStoreNames.contains(n));
+      const version = db.version;
+      if (needsFix) {
+        // 只有确实要重建时才关连接。无条件关掉再拿它开事务会抛
+        // InvalidStateError: The database connection is closing.
+        db.close();
+        step.push('需要建表，当前 v' + version);
+        db = await new Promise((res, rej) => {
+          const r = indexedDB.open('chat-demo', version + 1);
+          r.onupgradeneeded = () => {
+            const d = r.result;
+            for (const n of STORES) {
+              if (d.objectStoreNames.contains(n)) continue;
+              if (n === 'sessionSummaries') {
+                const st = d.createObjectStore(n, { keyPath: 'id' });
+                st.createIndex('fileIds', 'fileIds', { multiEntry: true });
+              } else {
+                d.createObjectStore(n, { keyPath: 'id' });
+              }
+            }
+          };
+          r.onsuccess = () => res(r.result);
+          r.onerror = () => rej(r.error);
+          r.onblocked = () => rej(new Error('open blocked'));
         });
       }
-      localStorage.removeItem('chat-demo:history-synced-at');
-      const n = await window.__localstore.countLocalSessions();
-      return { localCount: n, marker: localStorage.getItem('chat-demo:history-synced-at') };
-    })()
-  `);
-  check(
-    '已模拟出新浏览器（本地库为空、且没有同步过）',
-    cleared.localCount === 0 && !cleared.marker,
-    JSON.stringify(cleared)
-  );
+      step.push('库 v' + db.version + ' [' + [...db.objectStoreNames].join(',') + ']');
 
-  // 4) 关键一步：连接文件夹后的自动恢复
-  const autoRestore = await evaluateStable(`
-    (async () => {
-      try {
-        const restored = await window.__localstore.autoRestoreAfterConnect();
-        const sessions = await window.__localstore.readAllSessions();
-        return {
-          restored: restored,
-          count: sessions.length,
-          titles: sessions.map((s) => s.title),
-          marker: localStorage.getItem('chat-demo:history-synced-at')
-        };
-      } catch (e) {
-        return { error: (e && e.message) || String(e) };
+      const rows = [
+        ['sessions', {
+          id: 'exp-1', title: '导出测试一', createdAt: 1000, updatedAt: 2000,
+          rootMessageId: 'm1',
+          messages: [
+            { id: 'm1', role: 'user', content: '你好', files: [{ id: 'att-1' }] },
+            { id: 'm2', role: 'assistant', content: '你好，有什么可以帮你？', parentId: 'm1' }
+          ]
+        }],
+        ['sessions', {
+          id: 'exp-2', title: '导出测试二', createdAt: 1500, updatedAt: 2500,
+          rootMessageId: 'n1',
+          messages: [{ id: 'n1', role: 'user', content: '第二条', files: [] }]
+        }],
+        ['sessionSummaries', {
+          id: 'exp-1', title: '导出测试一', createdAt: 1000, updatedAt: 2000, fileIds: ['att-1']
+        }],
+        ['sessionSummaries', {
+          id: 'exp-2', title: '导出测试二', createdAt: 1500, updatedAt: 2500, fileIds: []
+        }],
+        ['files', {
+          id: 'att-1', name: 'a.bin', mimeType: 'application/octet-stream', isImage: false,
+          blob: new Blob([new Uint8Array([0,1,2,250,251,252,253,254,255])],
+                         { type: 'application/octet-stream' })
+        }]
+      ];
+
+      for (let i = 0; i < rows.length; i++) {
+        const [store, value] = rows[i];
+        try {
+          await new Promise((res, rej) => {
+            const tx = db.transaction([store], 'readwrite');
+            tx.objectStore(store).put(value);
+            tx.oncomplete = () => res();
+            tx.onerror = () => rej(tx.error || new Error('tx error'));
+            tx.onabort = () => rej(tx.error || new Error('tx abort'));
+          });
+          step.push('ok ' + store + '#' + i + ' id=' + value.id);
+        } catch (e) {
+          return { failedAt: store + '#' + i + ' id=' + value.id,
+                   err: String((e && e.name) + ': ' + (e && e.message)), step };
+        }
       }
+      db.close();
+      return { step };
     })()
   `);
-  check(
-    '连接文件夹后自动恢复了对话（返回导入数量，不是布尔值）',
-    typeof autoRestore.restored === 'number' && autoRestore.restored > 0,
-    JSON.stringify(autoRestore)
-  );
-  check(
-    '那条「文件夹里才有」的对话被读进了本地库',
-    Array.isArray(autoRestore.titles) && autoRestore.titles.indexOf(freshTitle) >= 0,
-    JSON.stringify(autoRestore.titles)
-  );
-  check(
-    '恢复后写下了「已同步」标记（下次启动不会重复导入）',
-    typeof autoRestore.marker === 'string' && autoRestore.marker.length > 0,
-    String(autoRestore.marker)
-  );
+  if (seedResult.failedAt || seedResult.openErr || seedResult.err) {
+    console.log('    ' + JSON.stringify(seedResult));
+  }
+  check('测试数据写入成功（store 结构正确）',
+    !seedResult.failedAt && !seedResult.openErr, JSON.stringify(seedResult));
 
-  // 5) 再调一次：本地已非空，必须跳过，绝不能覆盖
-  const second = await evaluateStable(`
+  // ---- 导出：拦下下载，检查产出的 JSON ----
+  const exported = await evaluateStable(`
     (async () => {
-      const r = await window.__localstore.maybeAutoRestoreHistory();
-      return JSON.stringify(r);
-    })()
-  `);
-  check(
-    '再次调用不会重复导入（本地非空时跳过）',
-    /already-synced|local-not-empty/.test(second),
-    second
-  );
-
-  // 6) 本地已有数据时连接文件夹，绝不能把本地清掉
-  const localKept = await evaluateStable(`
-    (async () => {
-      const before = (await window.__localstore.readAllSessions()).length;
-      await window.__localstore.autoRestoreAfterConnect();
-      const after = (await window.__localstore.readAllSessions()).length;
-      return { before: before, after: after };
-    })()
-  `);
-  check(
-    '本地已有对话时不会被覆盖（导入是合并语义）',
-    localKept.after === localKept.before && localKept.after > 0,
-    JSON.stringify(localKept)
-  );
-
-  // -------------------------------------------------------------------------
-  // ★ 回归：文件夹里没有可恢复的对话时，autoRestoreAfterConnect 必须返回 0，
-  //   不能返回真值 —— 否则调用方会当成"恢复成功"去刷新页面，刷新后又重扫，
-  //   用户看到界面一直卡在「处理中… / 同步中…」。
-  // -------------------------------------------------------------------------
-  const noImport = await evaluateStable(`
-    (async () => {
-      // 造一个**空的**存档文件夹并切过去（模拟"文件夹里没有对话"）
-      const bucket = {};
-      const makeDir = (prefix) => ({
-        kind: 'directory',
-        name: prefix === '' ? '空存档' : prefix.split('/').filter(Boolean).pop(),
-        async getDirectoryHandle(child, opts) {
-          const key = prefix + child + '/';
-          if (bucket[key] === undefined) {
-            if (!opts || !opts.create) {
-              const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
-            }
-            bucket[key] = true;
-          }
-          return makeDir(prefix + child + '/');
-        },
-        async getFileHandle(fname, opts) {
-          const key = prefix + fname;
-          if (bucket[key] === undefined && !(opts && opts.create)) {
-            const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
-          }
-          return { kind: 'file', name: fname,
-            async createWritable() { return { write: async () => {}, close: async () => {} }; },
-            async getFile() { return new File([''], fname); } };
-        },
-        async removeEntry(fname) { delete bucket[prefix + fname]; },
-        async *values() {},
-        async queryPermission() { return 'granted'; },
-        async requestPermission() { return 'granted'; }
-      });
-      // 清空本地库 + 清掉同步标记 → 满足"全新浏览器"的两个前置条件
-      const open = () => new Promise((res, rej) => {
-        const r = indexedDB.open('chat-demo', 11);
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
-      });
-      const db = await open();
-      for (const store of ['sessions','sessionSummaries','files']) {
-        if (!db.objectStoreNames.contains(store)) continue;
-        await new Promise((res, rej) => {
-          const tx = db.transaction([store], 'readwrite');
-          tx.objectStore(store).clear();
-          tx.oncomplete = res; tx.onerror = () => rej(tx.error);
-        });
+      const api = window.__localstore;
+      const realCreate = URL.createObjectURL;
+      const realClick = HTMLAnchorElement.prototype.click;
+      let blob = null;
+      URL.createObjectURL = (b) => { blob = b; return 'blob:stub'; };
+      HTMLAnchorElement.prototype.click = function () {};
+      let ret;
+      try { ret = await api.exportBundle(); }
+      finally {
+        URL.createObjectURL = realCreate;
+        HTMLAnchorElement.prototype.click = realClick;
       }
-      localStorage.removeItem('chat-demo:history-synced-at');
-      await window.__localstore.__setRootHandleForTest(makeDir(''));
-      const n = await window.__localstore.autoRestoreAfterConnect();
-      return JSON.stringify({ n: n, type: typeof n });
-    })()
-  `);
-  const ni = JSON.parse(noImport);
-  check(
-    'autoRestoreAfterConnect 返回数字而不是布尔值（类型契约）',
-    ni.type === 'number',
-    noImport
-  );
-  check(
-    '文件夹里没有可恢复的对话时返回 0（不会误触发刷新）',
-    ni.n === 0,
-    noImport
-  );
-
-  // -------------------------------------------------------------------------
-  // ★ 回归：界面不能永远卡在「处理中…」★
-  //   用户实测反馈过界面一直停在 处理中… / 同步中… 出不来，
-  //   所有按钮被禁用，只能关标签页。这里锁住三个逃生机制。
-  // -------------------------------------------------------------------------
-  const stuck = JSON.parse(await evaluateStable(`
-    (async () => {
-      const L = window.__localstore;
-      // 1) 手动逃生舱
-      const before = L.isBusy();
-      const after = L.unstick();
-      return JSON.stringify({
-        before: before,
-        afterBusy: after && after.busy,
-        isBusyNow: L.isBusy(),
-        hasReloadLog: Array.isArray(L.reloadLog())
-      });
-    })()
-  `));
-  check('isBusy() 可用（能查出面板是否还锁着）', stuck.before === false, JSON.stringify(stuck));
-  check('unstick() 能把「处理中」强制放开', stuck.isBusyNow === false, JSON.stringify(stuck));
-  check('reloadLog() 可用（能查出是谁要刷新）', stuck.hasReloadLog === true, JSON.stringify(stuck));
-
-  // 2) 刷新被 8 秒闸门拦下时，必须留下 blocked 记录，
-  //    否则"界面卡住不刷新"根本无从排查
-  const blockedLog = JSON.parse(await evaluateStable(`
-    (async () => {
-      const L = window.__localstore;
-      // 先把闸门时间戳设成"刚刚"，这样下一次请求一定被拦
-      sessionStorage.setItem('chat-demo:auto-reload-at', String(Date.now()));
-      const ok = L.__requestReloadForTest('测试：故意触发闸门');
-      const log = L.reloadLog();
-      const last = log[log.length - 1] || null;
-      sessionStorage.removeItem('chat-demo:auto-reload-at');
-      return JSON.stringify({ ok: ok, last: last });
-    })()
-  `));
-  check(
-    '刷新被闸门拦下时记录 blocked:true（可排查）',
-    blockedLog.ok === false && blockedLog.last && blockedLog.last.blocked === true,
-    JSON.stringify(blockedLog)
-  );
-  check(
-    '被拦下的记录带原因与调用栈',
-    blockedLog.last && /测试：故意触发闸门/.test(blockedLog.last.reason || '') &&
-      typeof blockedLog.last.stack === 'string' && blockedLog.last.stack.length > 0,
-    JSON.stringify(blockedLog.last)
-  );
-
-  // -------------------------------------------------------------------------
-  // ★★ 回归：必须挡住"每 9 秒刷一次"的无限刷新循环 ★★
-  //
-  // 原实现只有一个**滑动窗口**（8 秒内只允许一次），它只限速不限次：
-  // 每次启动周期超过 8 秒就变成无限循环，页面永远在加载、面板永远停在
-  // 「处理中… / 同步中…」。现在必须做到"每次页面加载只允许一次刷新"。
-  // -------------------------------------------------------------------------
-  const loopGuard = JSON.parse(await evaluateStable(`
-    (async () => {
-      const L = window.__localstore;
-      sessionStorage.removeItem('chat-demo:auto-reload-at');
-      sessionStorage.removeItem('chat-demo:auto-reload-count');
-      const seq = [];
-      // 连续请求 6 次，keepQuota=true 让配额真的累积：
-      // 旧实现只靠 8 秒滑动窗口，会放行多次；新实现必须只放行第 1 次。
-      for (let i = 0; i < 6; i++) {
-        seq.push(L.__requestReloadForTest('循环测试 ' + i, true));
-      }
-      const afterAll = sessionStorage.getItem('chat-demo:auto-reload-count');
-      sessionStorage.removeItem('chat-demo:auto-reload-at');
-      sessionStorage.removeItem('chat-demo:auto-reload-count');
-      return JSON.stringify({ seq: seq, count: afterAll });
-    })()
-  `));
-  console.log('    放行序列: ' + JSON.stringify(loopGuard.seq));
-  check(
-    '★★ 每次页面加载只允许一次自动刷新（挡住无限刷新循环）',
-    loopGuard.seq[0] === true && loopGuard.seq.slice(1).every((x) => x === false),
-    JSON.stringify(loopGuard.seq)
-  );
-
-  // 跨"8 秒滑动窗口"也必须照样拦住：模拟"刷完一次、过了 9 秒又来一次"
-  const loopGuard2 = JSON.parse(await evaluateStable(`
-    (async () => {
-      const L = window.__localstore;
-      sessionStorage.removeItem('chat-demo:auto-reload-at');
-      sessionStorage.removeItem('chat-demo:auto-reload-count');
-      // 第一次请求并**保留配额**（模拟真的刷了一次），
-      // 然后伪造"上次刷新发生在 9 秒前"——滑动窗口已经过期，
-      // 旧实现会在这里放行，从而形成"每 9 秒刷一次"的无限循环。
-      const first = L.__requestReloadForTest('第一次', true);
-      sessionStorage.setItem('chat-demo:auto-reload-at', String(Date.now() - 9000));
-      const second = L.__requestReloadForTest('过了 9 秒又来一次', true);
-      sessionStorage.removeItem('chat-demo:auto-reload-at');
-      sessionStorage.removeItem('chat-demo:auto-reload-count');
-      return JSON.stringify({ first: first, second: second });
-    })()
-  `));
-  check(
-    '★ 滑动窗口过期后也不放行（这正是原来无限循环的成因）',
-    loopGuard2.first === true && loopGuard2.second === false,
-    JSON.stringify(loopGuard2)
-  );
-
-  // 3) syncDoctor 必须把 UI/刷新现场一起报出来（用户只跑一条命令就够）
-  const doc = JSON.parse(await evaluateStable(
-    `(async () => JSON.stringify(await window.__localstore.syncDoctor()))()`
-  ));
-  check('syncDoctor 带 ui.busy（面板是否锁着）',
-    doc.ui && typeof doc.ui.busy === 'boolean', JSON.stringify(doc.ui));
-  check('syncDoctor 带 reloadLog（刷新现场）',
-    Array.isArray(doc.reloadLog) && doc.reloadLog.length > 0, JSON.stringify(doc.reloadLog));
-
-  // -------------------------------------------------------------------------
-  // ★ 端到端：用户点「选择文件夹…」时真正跑的那条业务逻辑 ★
-  //
-  // 前面几节是分开验证各个零件（countLocalSessions / autoRestoreAfterConnect）。
-  // 这一节直接把 pickAndRestoreFolder() 整条跑一遍 —— 顺序才是最容易出错的地方
-  // （先导入还是先对账、什么时候刷新、刷新被拦下会不会卡住）。
-  //
-  // 做法：替换 window.showDirectoryPicker 让它直接返回那个已有存档的文件夹，
-  // 不需要真的弹系统选择框。
-  // -------------------------------------------------------------------------
-  console.log('\n[选择文件夹] 点按钮后应自动导入并保持界面可用\n');
-
-  const pickPath = JSON.parse(await evaluateStable(`
-    (async () => {
-      const L = window.__localstore;
-
-      // ⚠ 不能依赖前面注入的 window.__fakeRoot / __fsBucket：
-      // 导入成功后排队的刷新会**真的把页面 reload 掉**，那两个内存对象
-      // 就随页面一起没了（模拟目录句柄只存在于 JS 内存里）。
-      // 所以这一段自带一整套"文件夹 + 存档"，不依赖任何先前状态。
-      const bucket = {};
-      const makeDir = (prefix) => ({
-        kind: 'directory',
-        name: prefix === '' ? '选择测试存档' : prefix.split('/').filter(Boolean).pop(),
-        async getDirectoryHandle(child, opts) {
-          const key = prefix + child + '/';
-          if (bucket[key] === undefined) {
-            if (!opts || !opts.create) {
-              const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
-            }
-            bucket[key] = true;
-          }
-          return makeDir(prefix + child + '/');
-        },
-        async getFileHandle(fname, opts) {
-          const key = prefix + fname;
-          if (bucket[key] === undefined && !(opts && opts.create)) {
-            const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
-          }
-          return { kind: 'file', name: fname,
-            async createWritable() {
-              let buf = '';
-              return { write: async (d) => { buf += typeof d === 'string' ? d : '[blob]'; },
-                       close: async () => { bucket[key] = buf; } };
-            },
-            async getFile() { return new File([bucket[key] || ''], fname); } };
-        },
-        async removeEntry(f) { delete bucket[prefix + f]; },
-        async *values() {
-          for (const k of Object.keys(bucket)) {
-            if (!k.startsWith(prefix)) continue;
-            const rest = k.slice(prefix.length);
-            if (!rest || rest.includes('/')) continue;
-            if (bucket[k] === true) yield { kind: 'directory', name: rest };
-            else yield { kind: 'file', name: rest };
-          }
-        },
-        async queryPermission() { return 'granted'; },
-        async requestPermission() { return 'granted'; }
-      });
-      const root = makeDir('');
-
-      // 造一份真实结构的存档文件（格式与 bridge 自己写出来的一致）
-      const now = Date.now();
-      const title = '选择文件夹导入验证';
-      const session = {
-        schema: 'chat-demo-mirror/session@1',
-        id: 'sess-pick-1', title: title,
-        createdAt: now, updatedAt: now, rootMessageId: 'k1',
-        conversation: [], messages: [
-          { id: 'k1', role: 'user', content: '选文件夹后能看到我吗', files: [],
-            createdAt: now, parentId: null, selectedChildId: 'k2' },
-          { id: 'k2', role: 'assistant', model: 'deepseek-flash',
-            serverModel: 'DeepSeek-V4.1-Flash', createdAt: now,
-            parentId: 'k1', selectedChildId: null, status: 'done',
-            blocks: [{ type: 'text', text: '能看到', citations: [] }] }
-        ]
+      const text = blob ? await blob.text() : '';
+      const bundle = text ? JSON.parse(text) : null;
+      return {
+        ret,
+        schema: bundle && bundle.schema,
+        sessionCount: bundle && bundle.sessionCount,
+        attachmentCount: bundle && bundle.attachmentCount,
+        hasB64: !!(bundle && bundle.files[0] && bundle.files[0].blobB64),
+        warning: (bundle && bundle.warning) || null,
+        textLen: text.length
       };
-      const convDir = await root.getDirectoryHandle('对话', { create: true });
-      const fh = await convDir.getFileHandle('pick-test.json', { create: true });
-      const w = await fh.createWritable();
-      await w.write(JSON.stringify(session));
-      await w.close();
-
-      // 清空本地库 + 清标记 → 模拟新浏览器
-      const open = () => new Promise((res, rej) => {
-        const r = indexedDB.open('chat-demo', 11);
-        r.onupgradeneeded = () => {
-          const db = r.result;
-          for (const s of ['sessions','files']) {
-            if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
-          }
-          if (!db.objectStoreNames.contains('sessionSummaries')) {
-            const st = db.createObjectStore('sessionSummaries', { keyPath: 'id' });
-            st.createIndex('fileIds', 'fileIds', { multiEntry: true });
-          }
-        };
-        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
-      });
-      const db = await open();
-      for (const store of ['sessions','sessionSummaries','files']) {
-        if (!db.objectStoreNames.contains(store)) continue;
-        await new Promise((res, rej) => {
-          const tx = db.transaction([store], 'readwrite');
-          tx.objectStore(store).clear();
-          tx.oncomplete = res; tx.onerror = () => rej(tx.error);
-        });
-      }
-      localStorage.removeItem('chat-demo:history-synced-at');
-      // 清掉刷新闸门，让排队的刷新这次真的能成功
-      sessionStorage.removeItem('chat-demo:auto-reload-at');
-
-      // 关键：让 showDirectoryPicker 直接返回这个文件夹
-      const orig = window.showDirectoryPicker;
-      window.showDirectoryPicker = async () => root;
-
-      // ★ 故意把刷新闸门关上，强制走"刷新被拦下"这条路。
-      //
-      // 为什么这么测：用户在真实环境里踩到的正是这条 —— 刷新被 8 秒闸门
-      // 拦下、页面不跳转，而 busy 没放开，面板永久停在「处理中…」。
-      // 让刷新真的发生反而测不到它（页面一跳，断言窗口就没了）。
-      // 排在前面的那几条测试已经验证过"刷新会被正常发出"。
-      sessionStorage.setItem('chat-demo:auto-reload-count', '1');
-
-      let res = null, err = null;
-      try { res = await L.__pickAndRestoreFolderForTest(); }
-      catch (e) { err = (e && e.message) || String(e); }
-      window.showDirectoryPicker = orig;
-
-      const after = await L.readAllSessions();
-      // 等过排队刷新的 800ms 延迟 + 余量
-      await new Promise(r => setTimeout(r, 1500));
-      sessionStorage.removeItem('chat-demo:auto-reload-count');
-      sessionStorage.removeItem('chat-demo:auto-reload-at');
-
-      return JSON.stringify({
-        err: err, res: res,
-        localAfter: after.length,
-        titles: after.map(s => s.title),
-        busyAfter: L.isBusy(),
-        message: (document.querySelector('.ls-msg') || {}).textContent || null,
-        reloadLog: L.reloadLog().slice(-3).map(x => ({ reason: x.reason, blocked: x.blocked }))
-      });
     })()
-  `));
-  console.log('    ' + JSON.stringify(pickPath));
-  check('点「选择文件夹」后没有抛错', pickPath.err === null, String(pickPath.err));
-  check('点完之后对话真的进了本地库',
-    pickPath.localAfter > 0, JSON.stringify(pickPath.titles));
-  check('pickAndRestoreFolder 报告导入了对话',
-    pickPath.res && pickPath.res.imported > 0, JSON.stringify(pickPath.res));
-  check('★ 界面没有卡在「处理中…」（busy 已放开）',
-    pickPath.busyAfter === false, JSON.stringify({ busy: pickPath.busyAfter, msg: pickPath.message }));
-  check('刷新被拦下时给出了手动刷新的提示（不是静默卡住）',
-    typeof pickPath.message === 'string' && pickPath.message.includes('Ctrl+Shift+R'),
-    JSON.stringify(pickPath.message));
+  `);
+  check('★ 导出产出可解析的备份文件', exported.schema === 'chat-demo-export@1',
+    JSON.stringify(exported.ret));
+  check('导出包含两个对话', exported.sessionCount === 2, String(exported.sessionCount));
+  check('导出包含一个附件', exported.attachmentCount === 1, String(exported.attachmentCount));
+  check('★ 附件以 base64 内嵌（备份自包含）', exported.hasB64 === true);
+  check('★ 导出文件带明文密钥警告', typeof exported.warning === 'string'
+    && exported.warning.includes('API Key'), String(exported.warning));
+  check('导出文件名以 .json 结尾',
+    !!(exported.ret && /\.json$/.test(exported.ret.name)), exported.ret && exported.ret.name);
+
+  // ---- 附件二进制往返：逐字节一致 ----
+  const bytes = await evaluateStable(`
+    (async () => {
+      const api = window.__localstore;
+      const files = await api.readAllFiles();
+      const f = files.find((x) => x.id === 'att-1');
+      const b64 = await api.__blobToB64ForTest(f.blob);
+      const back = api.__b64ToBlobForTest(b64, f.mimeType);
+      return [...new Uint8Array(await back.arrayBuffer())];
+    })()
+  `);
+  check('★ 附件二进制往返逐字节一致（含 250-255 高位字节）',
+    JSON.stringify(bytes) === JSON.stringify([0,1,2,250,251,252,253,254,255]),
+    JSON.stringify(bytes));
+
+  // ---- 导入合并规则 ----
+  const merge = await evaluateStable(`
+    window.__localstore.__planImportMergeForTest(
+      [{ id: 'keep-me', updatedAt: 9000, title: '本地较新', messages: [] }],
+      [{ id: 'keep-me', updatedAt: 1000, title: '备份较旧', messages: [] },
+       { id: 'new-one', updatedAt: 1000, title: '备份新增', messages: [] }]
+    )
+  `);
+  check('★ 备份较旧的同名对话不被覆盖（内容不会倒退）',
+    merge.toWrite.length === 1 && merge.toWrite[0].id === 'new-one',
+    JSON.stringify(merge.toWrite.map((s) => s.id)));
+  check('跳过计数正确', merge.skipped === 1, String(merge.skipped));
+
+  // ---- 清库后完整导入：两条对话 + 附件都要回来 ----
+  const reimport = await evaluateStable(`
+    (async () => {
+      const api = window.__localstore;
+      const realCreate = URL.createObjectURL;
+      const realClick = HTMLAnchorElement.prototype.click;
+      let blob = null;
+      URL.createObjectURL = (b) => { blob = b; return 'blob:stub'; };
+      HTMLAnchorElement.prototype.click = function () {};
+      try { await api.exportBundle(); }
+      finally {
+        URL.createObjectURL = realCreate;
+        HTMLAnchorElement.prototype.click = realClick;
+      }
+      const text = await blob.text();
+
+      // 清空整个库，模拟"换了一台机器"
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      await new Promise((res, rej) => {
+        const tx = db.transaction(['sessions', 'sessionSummaries', 'files'], 'readwrite');
+        tx.objectStore('sessions').clear();
+        tx.objectStore('sessionSummaries').clear();
+        tx.objectStore('files').clear();
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      });
+      const before = (await api.readAllSessions()).length;
+
+      const r = await api.importBundle(text);
+      const after = await api.readAllSessions();
+      const filesAfter = await api.readAllFiles();
+      return {
+        before,
+        imported: r.imported,
+        ids: after.map((s) => s.id).sort(),
+        titles: after.map((s) => s.title).sort(),
+        attIds: filesAfter.map((f) => f.id).sort(),
+        attSize: filesAfter[0] ? filesAfter[0].blob.size : -1
+      };
+    })()
+  `);
+  check('导入前库确实被清空了', reimport.before === 0, String(reimport.before));
+  check('★ 清库后导入把两条对话都还原了',
+    reimport.ids.join(',') === 'exp-1,exp-2', JSON.stringify(reimport.ids));
+  check('★ 标题也一并还原（不是空标题）',
+    reimport.titles.join(',') === '导出测试一,导出测试二', JSON.stringify(reimport.titles));
+  check('★ 附件被还原（且不是 0 字节空壳）',
+    reimport.attIds.join(',') === 'att-1' && reimport.attSize === 9,
+    JSON.stringify({ ids: reimport.attIds, size: reimport.attSize }));
+
+  // ---- 错误文件必须明确报错，不能静默失败 ----
+  const bad = await evaluateStable(`
+    (async () => {
+      try { await window.__localstore.importBundle('{"nope":1}'); return 'ok'; }
+      catch (e) { return 'ERR:' + e.message; }
+    })()
+  `);
+  check('导入非本页导出的文件会明确报错',
+    String(bad).startsWith('ERR:'), String(bad));
+
+  // ---- 单个对话导出（会话菜单里的「导出」）----
+  const single = await evaluateStable(`
+    (async () => {
+      try { return await window.__localstore.exportSession('exp-1'); }
+      catch (e) { return { err: String(e && e.message) }; }
+    })()
+  `);
+  check('★ 单个对话可以导出', !single.err, JSON.stringify(single));
+  check('单条导出文件名带对话标题',
+    !!(single.name && single.name.includes('导出测试一')), single.name);
+  check('★ 单条导出只带自己的附件（不拖整库）',
+    single.attachments === 1, String(single.attachments));
+
+  // ---- 按标题导出：找不到就要报错，不能瞎选一条 ----
+  const byTitle = await evaluateStable(`
+    (async () => {
+      const api = window.__localstore;
+      const ok = await api.exportSessionByTitle('导出测试一').then(
+        (r) => 'OK:' + r.name, (e) => 'ERR:' + e.message);
+      const none = await api.exportSessionByTitle('这个标题不存在').then(
+        () => 'OK', (e) => 'ERR:' + e.message);
+      return { ok, none };
+    })()
+  `);
+  check('按唯一标题可以导出', String(byTitle.ok).startsWith('OK:'), String(byTitle.ok));
+  check('★ 标题不存在时报错（不静默导出错的那条）',
+    String(byTitle.none).startsWith('ERR:'), String(byTitle.none));
+
+  // ---- 标题含非法字符时文件名要被清洗（否则下载会失败）----
+  const weird = await evaluateStable(`
+    (async () => {
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo');
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      await new Promise((res, rej) => {
+        const tx = db.transaction(['sessions'], 'readwrite');
+        tx.objectStore('sessions').put({
+          id: 'weird-1', title: 'a/b:c*d?e"f<g>h|i', createdAt: 1, updatedAt: 1,
+          rootMessageId: 'w', messages: []
+        });
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      });
+      try { return await window.__localstore.exportSession('weird-1'); }
+      catch (e) { return { err: String(e && e.message) }; }
+    })()
+  `);
+  check('★ 标题含 / : * ? " < > | 时仍能导出（文件名已清洗）',
+    !weird.err, JSON.stringify(weird));
+  check('清洗后的文件名不含路径分隔符',
+    !!(weird.name && !/[\\/]/.test(weird.name)), weird.name);
+
+  // ---- 配置随导出带走：换浏览器后 Key 与偏好要能还原 ----
+  const cfg = await evaluateStable(`
+    (async () => {
+      const api = window.__localstore;
+      localStorage.setItem('chat-demo:api-key', 'sk-cfg-round-trip');
+      localStorage.setItem('chat-demo:locale', 'en-US');
+
+      const realCreate = URL.createObjectURL;
+      const realClick = HTMLAnchorElement.prototype.click;
+      let blob = null;
+      URL.createObjectURL = (b) => { blob = b; return 'blob:stub'; };
+      HTMLAnchorElement.prototype.click = function () {};
+      try { await api.exportBundle(); }
+      finally {
+        URL.createObjectURL = realCreate;
+        HTMLAnchorElement.prototype.click = realClick;
+      }
+      const text = await blob.text();
+      const bundle = JSON.parse(text);
+      const cfgKey = bundle.config && bundle.config.apiKey;
+
+      // 清掉浏览器里的配置，再导入还原
+      localStorage.removeItem('chat-demo:api-key');
+      localStorage.removeItem('chat-demo:locale');
+      const r = await api.importBundle(text);
+      return {
+        cfgKey,
+        keyAfter: localStorage.getItem('chat-demo:api-key'),
+        localeAfter: localStorage.getItem('chat-demo:locale'),
+        keyRestored: r.keyRestored
+      };
+    })()
+  `);
+  check('★ 导出文件里带上了 API Key', cfg.cfgKey === 'sk-cfg-round-trip', String(cfg.cfgKey));
+  check('★ 导入后 Key 被还原（换浏览器不用重填）',
+    cfg.keyAfter === 'sk-cfg-round-trip', String(cfg.keyAfter));
+  check('★ 导入后界面偏好被还原', cfg.localeAfter === 'en-US', String(cfg.localeAfter));
+
+  // ---- 稳定不变量：桥接层不再暴露任何文件夹入口 ----
+  const noFolderApi = await evaluateStable(`
+    (() => {
+      const L = window.__localstore;
+      const gone = ['pickFolder','snapshot','restoreFromFolder','reconnect',
+                    'disconnect','folderWatch'].filter((k) => typeof L[k] === 'function'
+                    || (L[k] && typeof L[k] === 'object'));
+      return { gone, hasExport: typeof L.exportBundle === 'function',
+               hasImport: typeof L.importBundle === 'function' };
+    })()
+  `);
+  check('★ 文件夹入口已从调试接口移除（防止误触发文件系统调用）',
+    noFolderApi.gone.length === 0, JSON.stringify(noFolderApi.gone));
+  check('导出/导入接口存在',
+    noFolderApi.hasExport && noFolderApi.hasImport, JSON.stringify(noFolderApi));
+
+
 } catch (err) {
   console.log(`\n测试异常终止: ${err.message}\n`);
   failed++;

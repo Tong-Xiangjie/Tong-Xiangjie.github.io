@@ -10,9 +10,42 @@
 import net from 'node:net';
 import crypto from 'node:crypto';
 import http from 'node:http';
+import { existsSync } from 'node:fs';
 import { EventEmitter } from 'node:events';
 
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
+
+/**
+ * 找出本机可用的 Chromium 系浏览器（Chrome 优先，退到 Edge）。
+ *
+ * 为什么要有这个函数：以前每个套件都把 Chrome 路径写死在代码里，
+ * 一共写了 12 遍。结果用户某天卸载 Chrome 之后，**整套测试全挂**，
+ * 报的还是 `spawn ...chrome.exe ENOENT` 这种跟被测代码毫无关系的错，
+ * 排查半天才发现是环境问题。路径只该有一个来源。
+ *
+ * 另外支持用环境变量覆盖，方便在别的机器/便携版上跑：
+ *   $env:DSH_BROWSER = 'D:\chrome-win64\chrome.exe'; node tools/run-all.mjs
+ */
+export function findBrowser() {
+  const env = process.env.DSH_BROWSER;
+  if (env && existsSync(env)) return env;
+
+  const candidates = [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+    'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+    // 非 Windows 也顺手支持，省得以后换机器再改一遍
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser'
+  ];
+  for (const c of candidates) if (existsSync(c)) return c;
+  throw new Error(
+    '找不到 Chrome / Edge。装一个，或用 $env:DSH_BROWSER 指定可执行文件路径。'
+  );
+}
 
 /** 取回 http://host:port/json/version 里的 webSocketDebuggerUrl */
 export function fetchDebuggerUrl(port, timeoutMs = 15000) {
