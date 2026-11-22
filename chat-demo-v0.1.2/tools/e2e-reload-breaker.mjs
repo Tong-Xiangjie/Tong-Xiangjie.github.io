@@ -328,12 +328,22 @@ console.log('    启动期间真实导航次数: ' + navDelta);
 check('★ 启动期间页面刷新不超过 1 次（没有无限自己刷）',
   navDelta <= 1, '导航 ' + navDelta + ' 次');
 
-// 刷新意图记录：只要真的请求过刷新，就必须留下痕迹。
-// 若这次启动没有触发刷新（例如对账判定"无需收"），日志为空是正常结果。
+// 刷新意图记录：这里是最关键的证据。
+// 启动时对账收到了 1 个以上对话，于是它**申请了刷新**，日志里留下了
+// `启动对账收进了 N 个对话`（blocked:false）。
+// 这正是修复的证明：这条生产路径以前是裸的 `location.reload()`，
+// 既不会留下任何记录，也不受熔断器约束 —— 判断一出错就无限自己刷。
+// 现在它一定经由 requestReload()，于是既刷得出去、又只刷一次。
 const loggedCount = afterBoot.log.length;
 console.log('    刷新意图记录: ' + JSON.stringify(afterBoot.log));
 check('刷新日志接口可用（数组）', Array.isArray(afterBoot.log), typeof afterBoot.log);
-check('若启动请求过刷新，则必须留下记录（可排查）',
+check('★ 启动对账申请刷新时留下了记录（证明它走的是熔断器，不是裸 reload）',
+  afterBoot.log.some((x) => /启动对账收进了|监看文件夹收进了/.test(x.reason || '')),
+  JSON.stringify(afterBoot.log));
+check('★ 该次刷新被放行（该刷还是刷，没被误伤）',
+  afterBoot.log.some((x) => !x.blocked && /启动对账收进了|监看文件夹收进了/.test(x.reason || '')),
+  JSON.stringify(afterBoot.log));
+check('若启动请求过刷新，则每条记录都必须带原因',
   loggedCount === 0 || afterBoot.log.every((x) => typeof x.reason === 'string' && x.reason.length > 0),
   JSON.stringify(afterBoot.log));
 
@@ -468,6 +478,23 @@ check('被拦下的请求留下了 blocked 记录（可排查是谁在刷）',
   breaker.log.some((x) => x.blocked === true), JSON.stringify(breaker.log));
 check('放行的那次也留了记录',
   breaker.log.some((x) => x.blocked === false), JSON.stringify(breaker.log));
+
+// ---------------------------------------------------------------------------
+// 反复驱动真实对账路径这条用例**刻意没有做**，原因如实记录：
+//
+//   要"反复让对账认为有东西要收"，就必须在每次对账前把假文件夹重新绑定
+//   （应用启动时真的刷过一次页面，而注入的假句柄只活在 JS 内存里，
+//   刷新后就丢了 —— 真实句柄存在 IndexedDB，不受影响）。
+//   但一旦对账真的申请刷新并放行，页面就跳走了，CDP 这边的断言上下文随之
+//   销毁（Inspected target navigated）。要在无头环境里稳定绕开这点，
+//   需要把假句柄做成能跨文档存活的替身，成本明显超出收益。
+//
+//   所以这一条**不写不可靠的断言充数**，改用两种确定性证据覆盖：
+//     · 上面那条：启动对账申请刷新时，日志里留下了
+//       `启动对账收进了 N 个对话` —— 证明这条生产路径确实走了熔断器；
+//     · 下一段：连续/跨窗口的刷新请求只放行一次，证明无限循环被挡住。
+//   两处源码也确认过：1580 与 1683 行都是 requestReload(...)，没有裸 reload。
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // 反向确认：关掉刷新时，收对话仍然正常（刷不刷新与收不收是两件事）

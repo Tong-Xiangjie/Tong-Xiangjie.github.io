@@ -8420,28 +8420,72 @@
   }
 
   /**
-   * 自动刷新记录。
+   * 自动刷新记录（跨刷新保留）。
    *
-   * 为什么要有：自动刷新（恢复对话 / 恢复设置 / 恢复 Key 之后）如果判断写错，
-   * 就会变成"刷新 → 又触发 → 又刷新"的死循环，用户看到的是页面不停闪动。
-   * 这里把**每一次打算刷新**的理由与调用栈都留在 window 上，
-   * 出问题时在控制台一眼就能看出是谁在刷：
-   *   window.__lsReloadLog
-   * （也保留被闸门拦下的记录，标 blocked: true）
+   * 为什么要有：自动刷新（恢复对话 / 恢复设置 / 恢复 Key / 收到文件夹新对话之后）
+   * 如果判断写错，就会变成"刷新 → 又触发 → 又刷新"的死循环。
+   * 这里把**每一次打算刷新**的理由与调用栈都记下来，出问题时可查：
+   *   window.__localstore.reloadLog()
+   *
+   * ⚠ 必须写进 sessionStorage，不能只放在 window 上。
+   * 踩过的坑：这份日志本来只挂在 window.__lsReloadLog，可是**刷新本身就会
+   * 清掉 window** —— 于是最需要排查的那次刷新（它把页面刷走了）恰好把自己的
+   * 证据也抹掉了，日志永远是空的。sessionStorage 跨刷新保留，才留得住。
    */
+  var RELOAD_LOG_KEY = 'chat-demo:auto-reload-log';
+
   function rememberReload(reason, blocked) {
+    var entry = {
+      reason: reason,
+      blocked: !!blocked,
+      at: Date.now(),
+      stack: String(new Error().stack || '').split('\n').slice(1, 6).join(' | ')
+    };
+    // 内存里留一份，方便当次读取
     try {
       var log = (window.__lsReloadLog = window.__lsReloadLog || []);
-      log.push({
-        reason: reason,
-        blocked: !!blocked,
-        at: Date.now(),
-        stack: String(new Error().stack || '').split('\n').slice(1, 6).join(' | ')
-      });
+      log.push(entry);
       if (log.length > 40) log.shift();
     } catch (e) {
       /* ignore */
     }
+    // 持久化一份，跨刷新可见
+    try {
+      var arr = JSON.parse(sessionStorage.getItem(RELOAD_LOG_KEY) || '[]');
+      arr.push(entry);
+      if (arr.length > 40) arr = arr.slice(-40);
+      sessionStorage.setItem(RELOAD_LOG_KEY, JSON.stringify(arr));
+    } catch (e) {
+      /* ignore */
+    }
+  }
+
+  /** 读刷新记录（内存 + 跨刷新持久化的合并去重） */
+  function readReloadLog() {
+    var out = [];
+    try {
+      out = JSON.parse(sessionStorage.getItem(RELOAD_LOG_KEY) || '[]');
+    } catch (e) {
+      out = [];
+    }
+    if (!Array.isArray(out)) out = [];
+    var mem = [];
+    try {
+      mem = (window.__lsReloadLog || []).slice();
+    } catch (e) {
+      mem = [];
+    }
+    // 内存里可能有持久化之后才加进来的，按 at 时间合并
+    mem.forEach(function (m) {
+      var dup = out.some(function (x) { return x.at === m.at && x.reason === m.reason; });
+      if (!dup) out.push(m);
+    });
+    return out.slice(-40);
+  }
+
+  function clearReloadLog() {
+    try { sessionStorage.removeItem(RELOAD_LOG_KEY); } catch (e) { /* ignore */ }
+    try { window.__lsReloadLog = []; } catch (e) { /* ignore */ }
   }
 
   /** 需要刷新页面才能让改动生效时的统一出口 */
@@ -8642,7 +8686,7 @@
           permission: uiState.permission || null
         },
         reloadLog: (function () {
-          try { return (window.__lsReloadLog || []).slice(-12); } catch (e) { return []; }
+          try { return readReloadLog().slice(-12); } catch (e) { return []; }
         })()
       };
 
@@ -8779,6 +8823,32 @@
        */
       __reconcileForTest: function () { return reconcileFolderOnBoot(); },
       /**
+       * 只给测试用：重新装一次文件夹监看。
+       *
+       * ⚠ 这才是**生产路径**：它会跑 primeFolderWatcher + 对账，
+       * 并在收到对话后申请刷新页面（历史上这里是裸的 location.reload，
+       * 正是"无限自己刷新"的来源）。
+       * 直接调 __reconcileForTest() 是绕过那段刷新逻辑的，测不出刷新行为。
+       */
+      startFolderWatcher: function () { return startFolderWatcher(); },
+      /**
+       * 只给测试用：看看"对账眼里的文件夹"长什么样。
+       * 排查"文件夹里明明有文件，对账却认为没有东西要收"这类问题时，
+       * 需要同时看到：扫到哪些文件、每个文件的大小/时间、本地有哪些 id。
+       */
+      __scanForTest: async function () {
+        var list = await scanSessionFiles();
+        var local = await readAllSessions();
+        return {
+          scan: list,
+          lastError: watchState.lastError,
+          reconciled: watchState.reconciled,
+          localIds: local.map(function (s) {
+            return { id: s.id, updatedAt: s.updatedAt };
+          })
+        };
+      },
+      /**
        * 手动解除「处理中…」卡死（逃生舱）。
        *
        * withBusy 现在有 2 分钟看门狗，正常情况下用不到这个。
@@ -8799,10 +8869,11 @@
       /**
        * 谁在刷新页面 / 哪次刷新被闸门拦下了（排查"界面卡住不刷新"用）。
        * 被拦下的记录带 blocked: true 和调用栈。
+       * 记录跨刷新保留（写在 sessionStorage 里）。
        */
-      reloadLog: function () {
-        try { return (window.__lsReloadLog || []).slice(); } catch (e) { return []; }
-      },
+      reloadLog: function () { return readReloadLog(); },
+      /** 清空刷新记录（排查时想从干净状态复现用） */
+      clearReloadLog: function () { clearReloadLog(); return readReloadLog(); },
       /**
        * 只给测试用：走一遍刷新闸门判断并记录，但**不真的刷新**。
        * 用来验证"被闸门拦下时会留下 blocked 记录"。
@@ -8825,6 +8896,20 @@
           }
         } catch (e) { /* ignore */ }
         return ok;
+      },
+      /**
+       * 只给测试用：把熔断器的两个计数都清零，并返回清空后的状态。
+       * 排查/复现时想从"干净的一次页面加载"开始，就用这个。
+       */
+      __resetReloadGuardForTest: function () {
+        try {
+          sessionStorage.removeItem(RELOAD_GUARD_KEY);
+          sessionStorage.removeItem(RELOAD_COUNT_KEY);
+        } catch (e) { /* ignore */ }
+        return {
+          at: sessionStorage.getItem(RELOAD_GUARD_KEY),
+          count: sessionStorage.getItem(RELOAD_COUNT_KEY)
+        };
       },
       /**
        * 只给测试用：「选择 / 重新连接文件夹」的完整业务逻辑（不碰 busy 状态）。
