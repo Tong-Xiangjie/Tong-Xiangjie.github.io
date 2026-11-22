@@ -151,6 +151,24 @@ const sandbox = {
   matchMedia: shim.window.matchMedia,
   File: globalThis.File,
   Blob: globalThis.Blob,
+  // 导出/导入用到的编解码原语。
+  // atob/btoa 是 Node 18+ 的全局；FileReader 没有，这里补一个最小实现 ——
+  // 只要能把 Blob 读成 dataURL 就够，被测逻辑正是"去掉 dataURL 前缀拿 base64"。
+  atob: globalThis.atob,
+  btoa: globalThis.btoa,
+  FileReader: class FileReaderShim {
+    constructor() { this.result = null; this.error = null; this.onload = null; this.onerror = null; }
+    readAsDataURL(blob) {
+      blob.arrayBuffer().then((buf) => {
+        const b64 = Buffer.from(buf).toString('base64');
+        this.result = 'data:' + (blob.type || 'application/octet-stream') + ';base64,' + b64;
+        if (this.onload) this.onload();
+      }).catch((e) => {
+        this.error = e;
+        if (this.onerror) this.onerror();
+      });
+    }
+  },
   TextDecoder,
   TextEncoder,
   URL,
@@ -447,6 +465,53 @@ check('归一化后上传路径不重复 /anthropic',
   uploadPath === 'https://llmapi.paratera.com/anthropic/v1/files', uploadPath);
 check('归一化后上传路径不含 /anthropic/anthropic',
   uploadPath.indexOf('/anthropic/anthropic') === -1, uploadPath);
+
+// ---------------------------------------------------------------------------
+// 手动导出 / 导入：附件必须能无损往返
+//
+// 为什么这段值得单独测：附件是二进制（图片、PDF），而导出/导入要经过
+// base64 编解码。一旦这里出问题，用户备份出来的文件"看起来成功了"，
+// 但还原后附件全是坏图 —— 而这类 bug 平时完全不会暴露，
+// 等用户真的换电脑需要还原时才发现，那时备份已经没用了。
+// ---------------------------------------------------------------------------
+
+const { __b64ToBlobForTest, __blobToB64ForTest } = api;
+check('导出/导入的编解码接口已暴露',
+  typeof __b64ToBlobForTest === 'function' && typeof __blobToB64ForTest === 'function');
+
+if (typeof __b64ToBlobForTest === 'function' && typeof __blobToB64ForTest === 'function') {
+  // 全部 256 种字节值：能一次性抓出"高字节被截断/乱码"这类典型错误
+  const allBytes = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) allBytes[i] = i;
+  const binBlob = new Blob([allBytes], { type: 'application/octet-stream' });
+
+  const b64 = await __blobToB64ForTest(binBlob);
+  check('二进制 → base64 得到非空结果', typeof b64 === 'string' && b64.length > 0);
+
+  const back = __b64ToBlobForTest(b64, 'application/octet-stream');
+  check('base64 → Blob 保持了 type', back.type === 'application/octet-stream', back.type);
+  check('base64 → Blob 保持了字节数', back.size === 256, back.size);
+
+  const backBytes = new Uint8Array(await back.arrayBuffer());
+  let sameBytes = backBytes.length === 256;
+  for (let i = 0; sameBytes && i < 256; i++) if (backBytes[i] !== i) sameBytes = false;
+  check('★ 256 种字节值全部无损还原（附件不会坏）', sameBytes,
+    sameBytes ? undefined : '存在字节不一致');
+
+  // 空附件也要能处理：导出空 Blob 时不能抛错
+  const emptyBlob = new Blob([], { type: 'image/png' });
+  const emptyB64 = await __blobToB64ForTest(emptyBlob);
+  const emptyBack = __b64ToBlobForTest(emptyB64, 'image/png');
+  check('空附件往返后仍是 0 字节', emptyBack.size === 0, emptyBack.size);
+
+  // 中文文件名/内容走的是另一条路（JSON 字符串），确认 UTF-8 不被破坏
+  const zhText = '光学部分提取 · NLiPsCalib 论文讲解';
+  const zhBlob = new Blob([new TextEncoder().encode(zhText)], { type: 'text/plain' });
+  const zhB64 = await __blobToB64ForTest(zhBlob);
+  const zhBack = __b64ToBlobForTest(zhB64, 'text/plain');
+  check('★ 中文内容往返后不乱码',
+    (await zhBack.text()) === zhText, await zhBack.text());
+}
 
 console.log(`\n结果: ${passed} 通过, ${failed} 失败\n`);
 process.exit(failed ? 1 : 0);

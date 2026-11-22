@@ -353,6 +353,192 @@
   }
 
   // -------------------------------------------------------------------------
+  // 手动导出 / 导入（不碰 File System Access API）
+  // -------------------------------------------------------------------------
+
+  /**
+   * 手动导出：把所有对话（含附件原件）打包成一个 JSON 文件下载下来。
+   *
+   * ⚠ 为什么走"下载文件"而不是写文件夹：
+   * 下载走的是 Blob + <a download>，**完全不碰 File System Access API**。
+   * 用户那台机器上，文件夹读写会挂起并把 Chrome 的 GPU 进程拖死
+   * （所有标签一起崩），而下载这条路没有这个问题。所以它是文件夹同步之外
+   * 唯一可靠的搬运动作 —— 换浏览器、清数据前备份，或者干脆当"手动同步"用。
+   *
+   * 附件用 base64 内嵌，因此导出的 JSON 是**自包含**的：换台机器、换个浏览器，
+   * 只要有这一个文件就能完整还原，不需要再去找附件目录。
+   */
+  async function exportBundleToFile(onProgress) {
+    var sessions = await readAllSessions();
+    var files = await readAllFiles();
+    var total = sessions.length + files.length;
+    var done = 0;
+
+    var fileRows = [];
+    for (var i = 0; i < files.length; i++) {
+      var f = files[i];
+      if (!f || !f.id) continue;
+      var row = {
+        id: f.id,
+        name: f.name == null ? null : f.name,
+        mimeType: f.mimeType == null ? null : f.mimeType,
+        isImage: !!f.isImage,
+        serverId: f.serverId == null ? null : f.serverId
+      };
+      if (f.blob && f.blob.size != null) {
+        try {
+          // 用 FileReader 取 dataURL 再去掉前缀，比手写 btoa 稳妥
+          // （一次 btoa 处理几十兆的二进制会直接卡住界面甚至爆栈）
+          row.blobB64 = await new Promise(function (resolve, reject) {
+            var fr = new FileReader();
+            fr.onload = function () {
+              var s = String(fr.result || '');
+              var comma = s.indexOf(',');
+              resolve(comma >= 0 ? s.slice(comma + 1) : s);
+            };
+            fr.onerror = function () { reject(fr.error); };
+            fr.readAsDataURL(f.blob);
+          });
+        } catch (e) {
+          row.blobB64 = null;
+          warn('附件导出失败（跳过原件）：' + f.id);
+        }
+      }
+      fileRows.push(row);
+      done++;
+      if (onProgress) onProgress(done, total, '附件 ' + (i + 1) + '/' + files.length);
+    }
+
+    var bundle = {
+      schema: 'chat-demo-export@1',
+      note: '本文件由 chat-demo 本地存档桥接层导出，自包含（附件原件以 base64 内嵌）。'
+        + '换浏览器或清空浏览器数据后，用同一页面的「导入对话」还原。',
+      exportedAt: Date.now(),
+      exportedAtText: fmtTime(Date.now()),
+      appVersion: '0.1.2',
+      bridgeVersion: BRIDGE_VERSION,
+      origin: location.origin,
+      sessionCount: sessions.length,
+      attachmentCount: fileRows.length,
+      sessions: sessions,
+      files: fileRows
+    };
+
+    if (onProgress) onProgress(total, total, '正在生成文件…');
+    var name = 'chat-demo-导出-'
+      + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '') + '.json';
+    triggerDownload(JSON.stringify(bundle), name, 'application/json');
+    log('已导出 ' + sessions.length + ' 个对话、' + fileRows.length + ' 个附件 → ' + name);
+    return { sessionCount: sessions.length, attachmentCount: fileRows.length, name: name };
+  }
+
+  /** 用 <a download> 触发下载（不碰 File System Access） */
+  function triggerDownload(text, filename, mime) {
+    var blob = new Blob([text], { type: mime || 'application/octet-stream' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    (document.body || document.documentElement).appendChild(a);
+    a.click();
+    // 立刻 revoke 会让部分浏览器下载失败，给一点时间再回收
+    setTimeout(function () {
+      try { URL.revokeObjectURL(url); } catch (e) { /* ignore */ }
+      try { a.remove(); } catch (e) { /* ignore */ }
+    }, 10000);
+  }
+
+  /** base64 → Blob（导入时还原附件原件） */
+  function b64ToBlob(b64, mime) {
+    var bin = atob(b64);
+    var len = bin.length;
+    var bytes = new Uint8Array(len);
+    for (var i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime || 'application/octet-stream' });
+  }
+
+  /**
+   * 手动导入：读取导出的 JSON，合并进本地库。
+   *
+   * 合并规则（与文件夹反向同步一致，避免覆盖更新的内容）：
+   *   · 本地没有这条对话 → 收下
+   *   · 本地有、但文件里的 updatedAt 更新 → 用文件里的覆盖
+   *   · 本地更新 → 保留本地
+   * 只写 IndexedDB，**不碰文件夹**，所以即使全局停用了文件夹同步也能用。
+   */
+  async function importBundleFromText(text, onProgress) {
+    var bundle = JSON.parse(text);
+    if (!bundle || bundle.schema !== 'chat-demo-export@1') {
+      throw new Error('这不是本页面导出的备份文件（schema 不匹配）');
+    }
+    var inSessions = Array.isArray(bundle.sessions) ? bundle.sessions : [];
+    var inFiles = Array.isArray(bundle.files) ? bundle.files : [];
+    if (!inSessions.length) throw new Error('备份文件里没有任何对话');
+
+    var local = await readAllSessions();
+    var localById = {};
+    for (var i = 0; i < local.length; i++) localById[local[i].id] = local[i];
+
+    var toWrite = [];
+    var skipped = 0;
+    for (var j = 0; j < inSessions.length; j++) {
+      var s = normalizeSession(inSessions[j]);
+      if (!s.id) continue;
+      var l = localById[s.id];
+      if (!l) { toWrite.push(s); continue; }
+      if ((s.updatedAt || 0) > (l.updatedAt || 0)) toWrite.push(s);
+      else skipped++;
+    }
+
+    // 附件：还原 base64 → Blob，交给 writeBack 一起写
+    var fileRows = [];
+    for (var k = 0; k < inFiles.length; k++) {
+      var fr = inFiles[k];
+      if (!fr || !fr.id) continue;
+      var rec = {
+        id: fr.id,
+        name: fr.name == null ? null : fr.name,
+        mimeType: fr.mimeType == null ? null : fr.mimeType,
+        isImage: !!fr.isImage,
+        serverId: fr.serverId == null ? null : fr.serverId
+      };
+      if (fr.blobB64) {
+        try {
+          rec.blob = b64ToBlob(fr.blobB64, fr.mimeType);
+          rec.size = rec.blob.size;
+        } catch (e) {
+          warn('附件还原失败：' + fr.id);
+        }
+      }
+      fileRows.push(rec);
+      if (onProgress) onProgress(k + 1, inFiles.length, '附件 ' + (k + 1) + '/' + inFiles.length);
+    }
+
+    var result = {
+      total: inSessions.length,
+      imported: toWrite.length,
+      skipped: skipped,
+      attachments: fileRows.length
+    };
+    if (!toWrite.length) {
+      log('导入：文件里的 ' + inSessions.length + ' 个对话都不比本地新，无需改动');
+      return result;
+    }
+
+    autoSyncSuspended++;
+    try {
+      await writeBack(toWrite, fileRows, onProgress);
+    } finally {
+      autoSyncSuspended--;
+    }
+    lsSet(LS_HISTORY_SYNCED_AT, String(Date.now()));
+    emitSync();
+    log('导入完成：' + toWrite.length + ' 个对话写回本地库（跳过 ' + skipped + ' 个不更新的）');
+    return result;
+  }
+
+  // -------------------------------------------------------------------------
   // 对话树 → 线性消息（用于生成可读的 Markdown）
   // -------------------------------------------------------------------------
 
@@ -7249,6 +7435,72 @@
           })
         );
       }
+      // 手动导出 / 导入：完全不碰 File System Access 的一条备份通道。
+      //
+      // 为什么必须提供：用户那台机器上文件夹读写会把 Chrome 拖崩，而导出/导入
+      // 走的是"下载文件 + 选文件读入"，与文件夹权限、磁盘状态都无关。
+      // 于是即使全局停用了文件夹同步，换浏览器/清数据前也照样能完整搬运。
+      // 特意也放在 if/else 之外 —— 没连上文件夹时同样该能备份。
+      btns.push(
+        button('导出对话（下载备份文件）', function () {
+          withBusy(async function () {
+            try {
+              var r = await exportBundleToFile(function (done, total, label) {
+                setMessage('正在导出… ' + label, false);
+                rerender();
+              });
+              setMessage('已导出 ' + r.sessionCount + ' 个对话、'
+                + r.attachmentCount + ' 个附件：' + r.name, false);
+            } catch (e) {
+              setMessage('导出失败：' + ((e && e.message) || e), true);
+            }
+          });
+        }, { disabled: uiState.busy, title: '把所有对话和附件打包成一个 JSON 下载，不依赖文件夹权限' })
+      );
+      btns.push(
+        button('导入对话（选择备份文件）', function () {
+          var inp = document.createElement('input');
+          inp.type = 'file';
+          inp.accept = '.json,application/json';
+          inp.style.display = 'none';
+          inp.addEventListener('change', function () {
+            var file = inp.files && inp.files[0];
+            try { inp.remove(); } catch (e) { /* ignore */ }
+            if (!file) return;
+            withBusy(async function () {
+              try {
+                setMessage('正在读取备份文件…', false);
+                rerender();
+                var text = await file.text();
+                var r = await importBundleFromText(text, function (done, total, label) {
+                  setMessage('正在导入… ' + label, false);
+                  rerender();
+                });
+                if (!r.imported) {
+                  setMessage('导入完成：文件里的 ' + r.total
+                    + ' 个对话都不比本地新，无需改动。', false);
+                  return;
+                }
+                setMessage('已导入 ' + r.imported + ' 个对话，正在刷新页面…', false);
+                // 应用只在启动时读一次 IndexedDB，必须刷新才能看到新数据。
+                // 先放掉 busy 再排队刷新（否则被熔断拦下时面板会永远卡在「处理中」）。
+                uiState.busy = false;
+                rerender();
+                setTimeout(function () {
+                  if (requestReload('导入对话后刷新')) return;
+                  setMessage('已导入 ' + r.imported + ' 个对话。'
+                    + '自动刷新被拦下了，请手动刷新页面（F5）查看。', false);
+                }, 300);
+              } catch (e) {
+                setMessage('导入失败：' + ((e && e.message) || e), true);
+              }
+            });
+          });
+          document.body.appendChild(inp);
+          inp.click();
+        }, { disabled: uiState.busy, title: '选择之前导出的 JSON 备份，把对话合并回本地库' })
+      );
+
       lines.push(el('div', { class: 'ls-btns' }, btns));
 
       // 自动同步状态（仅展示，默认恒开，通过 localStorage 可关）
@@ -9486,6 +9738,24 @@
        */
       setFsDisabled: setFsGloballyDisabled,
       fsDisabled: fsGloballyDisabled,
+
+      // 手动导出 / 导入（不碰 File System Access）
+      exportBundle: exportBundleToFile,
+      importBundle: importBundleFromText,
+      /** 只给测试用：base64 ↔ Blob 的往返必须无损（附件靠它搬运） */
+      __b64ToBlobForTest: b64ToBlob,
+      __blobToB64ForTest: function (blob) {
+        return new Promise(function (resolve, reject) {
+          var fr = new FileReader();
+          fr.onload = function () {
+            var s = String(fr.result || '');
+            var comma = s.indexOf(',');
+            resolve(comma >= 0 ? s.slice(comma + 1) : s);
+          };
+          fr.onerror = function () { reject(fr.error); };
+          fr.readAsDataURL(blob);
+        });
+      },
 
       /**
        * 逐个试每一种文件系统调用，看**具体哪一个**挂住。
