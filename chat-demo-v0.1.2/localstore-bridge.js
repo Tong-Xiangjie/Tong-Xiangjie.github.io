@@ -743,72 +743,55 @@
   }
 
   /**
-   * 直接"试一下能不能写"，用来绕开 queryPermission 卡死。
+   * 只读探针：确认句柄还能不能正常使用。
    *
-   * 为什么需要：`queryPermission()` 只是**问** Chrome 权限状态，它挂了并不代表
-   * 真的不能写。用户实测正是"查询永不返回"，但文件夹本身完全正常。
-   * 与其因为问不到就判定整个同步失效，不如实际做一次最小写入来验证能力 ——
-   * 能写就说明权限是好的，编码器也该继续工作。
+   * ⚠ 这里原先是"真实写入探针"（getFileHandle create → createWritable → write
+   * → close），想用它绕开 queryPermission 卡死的问题。但那是**错的**：
+   * 在一个已经无响应的句柄上发起真实写入，等于往浏览器进程里再塞一批必然
+   * 挂起的文件系统操作 —— 而用户已经查明，正是"持续发起文件系统调用"会让
+   * 共用的 GPU 进程被看门狗杀掉、导致所有标签一起崩。
+   * 排查手段本身变成了伤害来源。
    *
-   * 探针是一个 0 字节的临时文件，写完立刻删掉，不会留下垃圾。
+   * 现在只做**只读**操作（列目录），绝不在可疑句柄上创建/写入/删除任何东西。
    */
-  async function probeWritable(handle) {
-    var probeName = '.ls-write-probe';
-    var fh;
+  async function probeReadable(handle) {
     try {
-      fh = await handle.getFileHandle(probeName, { create: true });
-      if (fh && typeof fh.createWritable === 'function') {
-        var w = await fh.createWritable();
-        await w.write(new Blob([]));
-        await w.close();
-      }
+      var it = handle.keys();
+      await it.next();
+      return true;
     } catch (e) {
-      warn('写入探针失败：' + ((e && e.message) || e));
       return false;
     }
-    // 清理探针；删不掉不算失败（有的同步盘会锁定文件），下次写入会覆盖它
-    try {
-      if (typeof handle.removeEntry === 'function') await handle.removeEntry(probeName);
-    } catch (e) { /* ignore */ }
-    return true;
   }
 
   /**
-   * "这块盘现在动不了"的短期记忆 + 熔断器。
-   *
-   * 用户实测：E: 盘上的文件夹，`queryPermission` 挂了，连**真实写入探针**
-   * （getFileHandle create → createWritable → write → close）也一起挂。
-   * 说明不是权限问题，而是**那块盘本身没有响应**（休眠的外置盘/移动硬盘、
-   * 或掉线的网络盘）。
+   * "这个句柄已经确认无响应"的标记 + 熔断器。
    *
    * ⚠ 这不只是"慢"的问题，而是会把整个 Chrome 拖死（用户查明的机制）：
    * 本库对 File System Access 的调用会进入浏览器进程，而**GPU 进程是所有标签
-   * 共用的**。持续不断地发起必然挂起的文件系统调用，会让它卡到被 Chrome 看门狗
-   * 判定无响应并强制终止（RESULT_CODE_KILLED）—— 于是**所有标签一起崩**，
-   * 不是单个标签的问题。
+   * 共用的**。持续发起必然挂起的文件系统调用，会让它卡到被 Chrome 看门狗
+   * 判定无响应并强制终止（RESULT_CODE_KILLED）—— 于是**所有标签一起崩**。
    *
-   * 更要命的是本库有两处会**持续**发起这些调用：
+   * 本库有两处会**持续**发起这些调用：
    *   1. 文件夹监看每 3 秒轮询一次（WATCH_INTERVAL）；
    *   2. 自动保存被对话变化反复触发。
-   * 盘一旦没响应，这两处就变成永不停歇的请求流。所以必须熔断：
-   * 连续失败后**彻底停止**一切文件系统调用，只允许用户手动重试。
+   *
+   * 关键决定：**一旦确认这个句柄无响应，本次页面加载内就不再自动尝试**
+   * （而不是"退避一段时间再试"）。
+   *
+   * 为什么不再自动重试：退避只是把请求流变慢，终究还会再打；而每一次尝试都
+   * 要在浏览器进程里挂起 3 秒（查询）+ 2 秒（只读探针）。用户实测在熔断生效
+   * （调用次数停在 6）之后**仍然崩了一次** —— 说明"自动再试"这条路本身就是
+   * 风险。既然盘坏了自动重试也不会自己变好，那就彻底交给用户手动触发。
+   * 只有用户点「重新连接 / 更换文件夹」才会重新开始尝试。
    */
-  var PERMISSION_RETRY_COOLDOWN_MS = 30000;
-
-  /**
-   * 连续失败次数 → 退避时间。
-   * 3s 这种"每轮都试"的模式正是把 GPU 进程刷爆的原因，必须指数退避：
-   * 一次失败 30 秒、两次 2 分钟、三次 10 分钟，之后基本不再自动试。
-   */
-  var PERMISSION_BACKOFF_STEPS = [30000, 120000, 600000];
-
-  /** 用户手动触发过重试后，才允许重新自动尝试（否则一直保持熔断） */
-  var permManualRetryAllowed = false;
-
   var permCache = { result: null, at: 0 };
 
-  /** 连续失败次数（熔断依据） */
+  /** 连续失败次数（仅用于诊断展示） */
   var permFailStreak = 0;
+
+  /** 本次页面加载内是否已熔断（true = 不再自动发起任何文件系统调用） */
+  var permTripped = false;
 
   /**
    * 本页面加载以来，我们向 File System Access 发起了多少次调用。
@@ -822,35 +805,28 @@
   /** 因为熔断而**没有**发出的文件系统调用次数（省下来的请求数） */
   var fsCallsAvoided = 0;
 
-  function permBackoffMs() {
-    if (permFailStreak <= 0) return PERMISSION_RETRY_COOLDOWN_MS;
-    // 第一次失败用 30 秒，之后 2 分钟、10 分钟，封顶 10 分钟。
-    // 封顶是必要的：如果用户一直不来点「重连」，自动恢复不应该被推到几小时后。
-    var i = Math.min(permFailStreak, PERMISSION_BACKOFF_STEPS.length) - 1;
-    return PERMISSION_BACKOFF_STEPS[i];
-  }
-
   /**
    * 现在是否处于熔断中（盘没响应，且还没到下次允许尝试的时间）。
    * 所有自动路径都必须先问这个，避免继续往一个坏盘上打请求。
    */
   function permCircuitOpen() {
-    if (!permCache.result || permCache.result === 'granted') return false;
-    return (Date.now() - permCache.at) < permBackoffMs();
+    // 一旦熔断，本次页面加载内一直有效 —— 不再自动重试。
+    // 理由见 permTripped 的注释：自动重试只是把请求流变慢，仍有崩溃风险，
+    // 而坏掉的句柄不会因为重试自己变好。
+    return permTripped;
   }
 
-  /** 熔断下还剩多久才允许再试（毫秒），用于界面上说明"正在等待" */
+  /** 熔断下还剩多久才允许再试（毫秒）。已改为页面内不再自动重试，故恒为 0 */
   function permRetryInMs() {
-    if (!permCircuitOpen()) return 0;
-    return permBackoffMs() - (Date.now() - permCache.at);
+    return 0;
   }
 
-  /** 用户重新选文件夹 / 主动重连 / 页面重新可见时调用：作废缓存，给一次干净的重试 */
+  /** 用户重新选文件夹 / 主动重连时调用：解除熔断，允许重新尝试 */
   function invalidatePermissionCache(byUser) {
-    permCache.result = null;
-    permCache.at = 0;
+    permCache = { result: null, at: 0 };
     permFailStreak = 0;
-    permManualRetryAllowed = !!byUser;
+    permTripped = false;
+    if (byUser) log('用户主动重试：已解除文件系统熔断');
   }
 
   /** 确保目录句柄可写；需要用户手势时返回 'prompt' */
@@ -885,29 +861,29 @@
       permFailStreak = 0;
       return state;
     } catch (e) {
-      // 问不到权限状态。**先别急着判死刑** —— 可能只是查询接口卡住，
-      // 而真实写入能力是好的。直接试写一次来判定。
-      //
-      // 注意：探针成功才返回 'granted'；失败一律 'denied'，绝不"赌"权限。
-      // 赌错会让后续写入抛错，反而更难查。
+      // 问不到权限状态。用**只读**探针确认句柄还能不能用。
+      // （以前这里是"真实写入探针"，在一个可疑句柄上创建/写入文件 ——
+      //  排查手段本身变成了往浏览器进程里塞更多挂起请求，已改为只读。）
       try {
         fsCallCount++;
-        var ok = await withPermissionTimeout(probeWritable(handle), '写入探针');
+        var ok = await withPermissionTimeout(probeReadable(handle), '只读探针');
         if (ok) {
-          log('权限查询卡住，但实测写入可用 —— 按已授权继续（句柄本身是好的）');
+          log('权限查询卡住，但只读访问正常 —— 按已授权继续（句柄本身是好的）');
           invalidatePermissionCache(false);
           return 'granted';
         }
-      } catch (e2) { /* 探针也卡住，往下走 */ }
+      } catch (e2) { /* 只读探针也卡住，往下走 */ }
 
-      // 连真实写入都挂 → 基本可以断定是"盘没有响应"。
-      // 记一次失败并退避；退避期间所有自动路径都会被 permCircuitOpen() 挡住。
+      // 查询和只读访问都挂 → 这个句柄确认不可用。**本次页面加载内彻底熔断**，
+      // 不再自动重试（自动重试只会继续往浏览器进程塞挂起请求）。
       permissionStuck = true;
       permFailStreak++;
+      permTripped = true;
       permCache = { result: 'denied', at: Date.now() };
-      warn('文件系统无响应（连续第 ' + permFailStreak + ' 次）—— '
-        + Math.round(permBackoffMs() / 1000) + ' 秒内不再自动尝试，'
-        + '以免持续请求拖死浏览器进程');
+      // 立刻停掉监看，不用等下一轮计时器 —— 每一轮都是一批挂起的文件系统调用。
+      try { stopFolderWatcher(); } catch (e3) { /* ignore */ }
+      warn('文件系统无响应（连续第 ' + permFailStreak + ' 次）—— 本次页面加载内'
+        + '不再自动尝试，监控也已停止，以免持续请求拖死浏览器进程（用户实测的整机崩溃）');
       return 'denied';
     }
   }
@@ -1440,9 +1416,8 @@
     // 而每一次尝试都会往浏览器进程里塞一批必然挂起的调用。
     if (permCircuitOpen()) {
       fsCallsAvoided++;
-      var waitS = Math.ceil(permRetryInMs() / 1000);
-      throw new Error('磁盘无响应，已暂停同步（约 ' + waitS
-        + ' 秒后可自动重试；也可点「更换文件夹」重新选择）');
+      throw new Error('文件夹句柄已确认无响应，本次已停止同步。'
+        + '请点「更换文件夹」重新选择（或先确认该文件夹可正常访问）。');
     }
 
     var root = await getRootHandle();
@@ -9085,64 +9060,74 @@
     // 它自己会先取句柄再对齐，这里不 await，免得拖慢首屏。
 
     // 从文件夹恢复设置与 API Key（仅当浏览器里没有时才回填）
-    try {
-      var settingsRestored = await bootStepRun('恢复设置', hydrateSettingsFromFolder());
-      if (settingsRestored) {
-        if (requestReload('从文件夹恢复了设置')) return;
+    //
+    // ⚠ 每一步前面都要看熔断状态。句柄确认无响应后，这些步骤每一步都要先白等
+    // 3 秒（权限查询）+ 2 秒（只读探针），启动连做三步就是十几秒不停往浏览器
+    // 进程里塞挂起请求 —— 用户正是在这种"持续发起文件系统调用"的形态下崩溃的。
+    // 熔断后整段直接跳过，一个调用都不发。
+    if (!permCircuitOpen()) {
+      try {
+        var settingsRestored = await bootStepRun('恢复设置', hydrateSettingsFromFolder());
+        if (settingsRestored) {
+          if (requestReload('从文件夹恢复了设置')) return;
+        }
+      } catch (e) {
+        warn('恢复设置失败', e);
       }
-    } catch (e) {
-      warn('恢复设置失败', e);
     }
 
-    try {
-      var restored = await bootStepRun('恢复 API Key', hydrateKeyFromFolder());
-      if (restored) {
-        // 官方应用在启动时读取一次 apiKey，这里刷新让它生效
-        if (requestReload('从文件夹恢复了 API Key')) return;
+    if (!permCircuitOpen()) {
+      try {
+        var restored = await bootStepRun('恢复 API Key', hydrateKeyFromFolder());
+        if (restored) {
+          // 官方应用在启动时读取一次 apiKey，这里刷新让它生效
+          if (requestReload('从文件夹恢复了 API Key')) return;
+        }
+      } catch (e) {
+        warn('恢复 API Key 失败', e);
       }
-    } catch (e) {
-      warn('恢复 API Key 失败', e);
     }
 
     // 把文件夹里 / 应用里已有的 Key 收进提供方，避免设置面板显示为空、
     // 以及后续保存时用空 Key 覆盖掉可用的 Key（「Key 无效」的根因）。
-    try {
-      await bootStepRun('同步 API Key 到提供方', syncKeyFromFolderToProvider());
-      adoptKeyIntoActiveProvider();
-    } catch (e) {
-      warn('同步 API Key 到提供方失败', e);
+    if (!permCircuitOpen()) {
+      try {
+        await bootStepRun('同步 API Key 到提供方', syncKeyFromFolderToProvider());
+        adoptKeyIntoActiveProvider();
+      } catch (e) {
+        warn('同步 API Key 到提供方失败', e);
+      }
     }
 
     // 之后持续对账：官方「数据管理」里的 Key 编辑框会直接写槽位，
     // 桥接层收不到通知，只能靠轮询把它采纳进当前提供方。
     startKeySync();
 
-    if (supportsFs) {
+    // 熔断已触发（句柄确认无响应）就整段跳过：一次文件系统调用都不发。
+    if (supportsFs && !permCircuitOpen()) {
       try {
         var root = await bootStepRun('取文件夹句柄', getRootHandle());
         if (root) {
           dirCache = root;
           var state = await bootStepRun('检查文件夹权限', ensurePermission(root, false));
-          // 句柄的权限查询卡死过：这个句柄救不回来（queryPermission 永远不返回），
-          // 必须让用户重新选一次文件夹换一个新句柄。否则后续每次权限检查
-          // 都要白等一个超时，自动保存与「立即同步」会全部失效。
+          // 句柄确认无响应：查权限和只读访问都挂。
+          // 这个句柄救不回来，必须让用户重新选一次文件夹换新句柄。
           if (permissionStuck) {
             uiState.permission = 'stuck';
-            // 实测证据：不只是权限查询挂了，连**真实写入探针**（建文件→写→删）
-            // 也一起挂。所以问题不在权限，而在**那个文件夹所在的盘没有响应**
-            // （休眠的外置/移动硬盘、掉线的网络盘、或盘符已不存在）。
-            // 措辞必须指向"盘"，否则用户会一直去点「重新连接」而白费力气。
-            uiState.message = '无法访问存档文件夹所在的磁盘（读写都没有响应）。'
-              + '请先确认该磁盘在「此电脑」里能正常打开，再点「更换文件夹」重新选择；'
-              + '若这块盘不常插着，建议把存档文件夹放到本机硬盘上。';
+            // 措辞指向"句柄/文件夹访问"，并给出明确的下一步动作。
+            // （之前的措辞指向"磁盘坏了"，但用户确认 E: 是能正常打开的本机盘，
+            //  写错了方向会让用户去查一块没问题的盘。）
+            uiState.message = '无法访问存档文件夹（读取与授权检查都没有响应）。'
+              + '请点「更换文件夹」重新选择同一个文件夹 —— '
+              + 'Chrome 需要重新拿一个有效的文件夹句柄才能继续同步。';
             uiState.messageError = true;
-            warn('文件夹所属磁盘无响应（权限查询与写入探针都超时），已提示用户检查磁盘');
+            warn('文件夹句柄无响应，已提示用户重新选择文件夹');
           } else {
             uiState.permission = state;
-            // 权限恢复正常：把之前那条"请重新选择文件夹"的告警收掉，
+            // 权限恢复正常：把之前那条告警收掉，
             // 否则用户照做之后告警还挂着，会以为没修好。
             if (state === 'granted' && uiState.messageError
-                && /Chrome 没有响应/.test(uiState.message || '')) {
+                && /无法访问存档文件夹/.test(uiState.message || '')) {
               uiState.message = null;
               uiState.messageError = false;
             }
@@ -9346,7 +9331,9 @@
           调用次数: fsCallCount,
           连续失败: permFailStreak,
           熔断中: permCircuitOpen(),
-          再等毫秒: permRetryInMs(),
+          说明: permCircuitOpen()
+            ? '已熔断：本次页面加载内不再自动发起任何文件系统调用'
+            : '正常',
           上次结果: permCache.result,
           上次时间: permCache.at ? new Date(permCache.at).toISOString() : null,
           已避开写盘: fsCallsAvoided
@@ -9356,6 +9343,83 @@
       retryFsNow: function () {
         invalidatePermissionCache(true);
         return { ok: true, note: '已解除熔断，下一次同步会真正尝试' };
+      },
+
+      /**
+       * 逐个试每一种文件系统调用，看**具体哪一个**挂住。
+       *
+       * 为什么需要：目前只知道"权限查询和写入探针都超时"，但探针内部包含
+       * 四步（getFileHandle → createWritable → write → close），到底卡在哪一步
+       * 并不清楚。把最小调用逐个隔离测试，才能判断是
+       * "整个句柄坏了" 还是 "只是权限查询这个接口坏了"。
+       *
+       * 每个测试独立限时 2 秒，超时不会互相牵连。
+       * 用法：copy(JSON.stringify(await window.__localstore.probeFsCalls(), null, 2))
+       */
+      probeFsCalls: async function () {
+        var root = dirCache || (await getRootHandle());
+        if (!root) return { 结论: '没有文件夹句柄' };
+
+        var out = {};
+        var timed = function (label, fn) {
+          return new Promise(function (resolve) {
+            var done = false;
+            var t = setTimeout(function () {
+              if (done) return;
+              done = true;
+              fsCallCount++;
+              out[label] = '★ 超时（永远不返回）';
+              resolve();
+            }, 2000);
+            Promise.resolve()
+              .then(fn)
+              .then(function (v) {
+                if (done) return;
+                done = true;
+                clearTimeout(t);
+                fsCallCount++;
+                out[label] = '成功: ' + (v === undefined ? 'ok' : String(v).slice(0, 60));
+                resolve();
+              })
+              .catch(function (e) {
+                if (done) return;
+                done = true;
+                clearTimeout(t);
+                fsCallCount++;
+                out[label] = '抛错: ' + ((e && e.name) || '') + ' ' + ((e && e.message) || e);
+              });
+          });
+        };
+
+        out.句柄名 = root.name || '(无名)';
+        out.句柄种类 = root.kind || '(未知)';
+
+        await timed('queryPermission(无参数)', function () { return root.queryPermission(); });
+        await timed('queryPermission({read})', function () { return root.queryPermission({ mode: 'read' }); });
+        await timed('queryPermission({readwrite})', function () { return root.queryPermission({ mode: 'readwrite' }); });
+        await timed('keys() 列目录', async function () {
+          var it = root.keys();
+          var first = await it.next();
+          return first && first.done ? '空目录' : '有内容';
+        });
+        await timed('getFileHandle(create)', async function () {
+          var fh = await root.getFileHandle('.ls-probe-2', { create: true });
+          return fh ? '拿到句柄' : '空';
+        });
+        await timed('getFileHandle+删', async function () {
+          if (typeof root.removeEntry === 'function') await root.removeEntry('.ls-probe-2');
+          return '已清理';
+        });
+
+        out.结论 = (function () {
+          var keys = Object.keys(out);
+          var stuck = keys.filter(function (k) { return /超时/.test(String(out[k])); });
+          if (!stuck.length) return '所有调用都正常 —— 句柄是好的。';
+          if (stuck.length >= 4) return '整个句柄都无效（多种调用一起挂），建议重新选文件夹换一个新句柄。';
+          return '只有部分调用挂住：' + stuck.join('、') + ' —— 可能是权限接口本身的 bug。';
+        })();
+
+        return out;
       },
 
       onSync: onSync,
