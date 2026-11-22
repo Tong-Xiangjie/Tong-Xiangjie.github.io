@@ -506,7 +506,9 @@ const bAutoRaw = await B.ev(`
 `);
 console.log('    raw: ' + String(bAutoRaw).slice(0, 240));
 const bAuto = String(bAutoRaw).startsWith('ERR') ? { error: bAutoRaw } : JSON.parse(bAutoRaw);
-check('自动恢复被触发', bAuto.restored === true, JSON.stringify(bAuto));
+// autoRestoreAfterConnect 返回的是**恢复进来的对话数**（0 = 没恢复），
+// 不是布尔值 —— 这样「恢复了个寂寞」不会被误当成成功而触发刷新。
+check('自动恢复被触发', bAuto.restored === 1, JSON.stringify(bAuto));
 check('对话已回到本地库', bAuto.localCount === 1, JSON.stringify(bAuto));
 check('写下了历史同步标记', bAuto.marker === true, JSON.stringify(bAuto));
 
@@ -519,7 +521,7 @@ const bAuto2Raw = await B.ev(`
   })()
 `);
 const bAuto2 = String(bAuto2Raw).startsWith('ERR') ? { error: bAuto2Raw } : JSON.parse(bAuto2Raw);
-check('已有数据时不会重复自动恢复', bAuto2.restored === false, JSON.stringify(bAuto2));
+check('已有数据时不会重复自动恢复', bAuto2.restored === 0, JSON.stringify(bAuto2));
 
 await B.close();
 

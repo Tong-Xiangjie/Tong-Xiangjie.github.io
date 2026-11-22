@@ -787,6 +787,238 @@ try {
     hydrate.ok === true && hydrate.key === 'sk-test-key-12345',
     JSON.stringify(hydrate)
   );
+
+  // -------------------------------------------------------------------------
+  // ★ 回归：换浏览器 / 清空数据后，连上文件夹要能把对话读回来 ★
+  //
+  // 这是用户报的「我另外一个浏览器记录不互联」的正面用例。
+  //
+  // 曾经的真实 bug：countLocalSessions() 数的是桥接层自己的库
+  // （chat-demo-localstore，没有 sessions 表），永远返回 -1；
+  // 而 -1 在 maybeAutoRestoreHistory() 里表示「数不出来，按不安全处理」，
+  // 于是判断永远走成「本地已经有数据了，不要覆盖」，导入**从来没跑过**。
+  //
+  // 这里把真实链路完整跑一遍：
+  //   本地库清空（模拟新浏览器）→ 文件夹里有别人的存档 → 连接后应自动读回来。
+  // 覆盖 snapshot / 数据/sessions.json / 对话/*.json 的真实格式。
+  // -------------------------------------------------------------------------
+  console.log('\n[换浏览器] 新浏览器连上已有存档的文件夹，应把对话读回来\n');
+
+  // 1) 造一条"文件夹里才有"的新对话（独立 id，方便断言"是它被导入了"）
+  const freshTitle = '换浏览器导入验证：薛定谔的猫';
+  await evaluateStable(`
+    (async () => {
+      const open = () => new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo', 11);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      const db = await open();
+      const now = Date.now();
+      const session = {
+        id: 'sess-fresh-1',
+        title: ${JSON.stringify(freshTitle)},
+        createdAt: now, updatedAt: now,
+        rootMessageId: 'f1',
+        messages: [
+          { id: 'f1', role: 'user', content: '文件夹里才有的问题', files: [],
+            createdAt: now, parentId: null, selectedChildId: 'f2' },
+          { id: 'f2', role: 'assistant', model: 'deepseek-flash',
+            serverModel: 'DeepSeek-V4.1-Flash',
+            createdAt: now, parentId: 'f1', selectedChildId: null, status: 'done',
+            blocks: [{ type: 'text', text: '文件夹里才有的回答', citations: [] }] }
+        ]
+      };
+      await new Promise((res, rej) => {
+        const tx = db.transaction(['sessions','sessionSummaries'], 'readwrite');
+        tx.objectStore('sessions').put(session);
+        tx.objectStore('sessionSummaries').put({
+          id: session.id, title: session.title, createdAt: session.createdAt,
+          updatedAt: session.updatedAt, fileIds: []
+        });
+        tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+      });
+      return true;
+    })()
+  `);
+
+  // 2) 落盘一次 —— 用 bridge 自己的快照写出真实格式的文件，
+  //    避免手写格式跟实现对不上（那会让测试变成"假阳性"）
+  await evaluateStable(`window.__localstore.snapshot('fresh-import-seed')`);
+  const seededFiles = await evaluateStable('Object.keys(window.__fsBucket).sort()');
+  const seededJson = seededFiles.filter((f) => /^对话\/.*\.json$/.test(f));
+  check(
+    '文件夹里已有本机与「新对话」的存档',
+    seededJson.length >= 2,
+    'json 文件: ' + JSON.stringify(seededJson)
+  );
+  check(
+    '存档里确实有那条「文件夹里才有」的对话',
+    seededFiles.some((f) => /^对话\/.*\.json$/.test(f)) &&
+      (await evaluateStable(`
+        Object.keys(window.__fsBucket).some(k =>
+          /^对话\\/.*\\.json$/.test(k) &&
+          String(window.__fsBucket[k]).indexOf(${JSON.stringify(freshTitle)}) >= 0)
+      `)) === true
+  );
+
+  // 3) 模拟新浏览器：清空本地库 + 清掉"同步过"的标记
+  const cleared = await evaluateStable(`
+    (async () => {
+      const open = () => new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo', 11);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      const db = await open();
+      for (const store of ['sessions','sessionSummaries','files']) {
+        if (!db.objectStoreNames.contains(store)) continue;
+        await new Promise((res, rej) => {
+          const tx = db.transaction([store], 'readwrite');
+          tx.objectStore(store).clear();
+          tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+        });
+      }
+      localStorage.removeItem('chat-demo:history-synced-at');
+      const n = await window.__localstore.countLocalSessions();
+      return { localCount: n, marker: localStorage.getItem('chat-demo:history-synced-at') };
+    })()
+  `);
+  check(
+    '已模拟出新浏览器（本地库为空、且没有同步过）',
+    cleared.localCount === 0 && !cleared.marker,
+    JSON.stringify(cleared)
+  );
+
+  // 4) 关键一步：连接文件夹后的自动恢复
+  const autoRestore = await evaluateStable(`
+    (async () => {
+      try {
+        const restored = await window.__localstore.autoRestoreAfterConnect();
+        const sessions = await window.__localstore.readAllSessions();
+        return {
+          restored: restored,
+          count: sessions.length,
+          titles: sessions.map((s) => s.title),
+          marker: localStorage.getItem('chat-demo:history-synced-at')
+        };
+      } catch (e) {
+        return { error: (e && e.message) || String(e) };
+      }
+    })()
+  `);
+  check(
+    '连接文件夹后自动恢复了对话（返回导入数量，不是布尔值）',
+    typeof autoRestore.restored === 'number' && autoRestore.restored > 0,
+    JSON.stringify(autoRestore)
+  );
+  check(
+    '那条「文件夹里才有」的对话被读进了本地库',
+    Array.isArray(autoRestore.titles) && autoRestore.titles.indexOf(freshTitle) >= 0,
+    JSON.stringify(autoRestore.titles)
+  );
+  check(
+    '恢复后写下了「已同步」标记（下次启动不会重复导入）',
+    typeof autoRestore.marker === 'string' && autoRestore.marker.length > 0,
+    String(autoRestore.marker)
+  );
+
+  // 5) 再调一次：本地已非空，必须跳过，绝不能覆盖
+  const second = await evaluateStable(`
+    (async () => {
+      const r = await window.__localstore.maybeAutoRestoreHistory();
+      return JSON.stringify(r);
+    })()
+  `);
+  check(
+    '再次调用不会重复导入（本地非空时跳过）',
+    /already-synced|local-not-empty/.test(second),
+    second
+  );
+
+  // 6) 本地已有数据时连接文件夹，绝不能把本地清掉
+  const localKept = await evaluateStable(`
+    (async () => {
+      const before = (await window.__localstore.readAllSessions()).length;
+      await window.__localstore.autoRestoreAfterConnect();
+      const after = (await window.__localstore.readAllSessions()).length;
+      return { before: before, after: after };
+    })()
+  `);
+  check(
+    '本地已有对话时不会被覆盖（导入是合并语义）',
+    localKept.after === localKept.before && localKept.after > 0,
+    JSON.stringify(localKept)
+  );
+
+  // -------------------------------------------------------------------------
+  // ★ 回归：文件夹里没有可恢复的对话时，autoRestoreAfterConnect 必须返回 0，
+  //   不能返回真值 —— 否则调用方会当成"恢复成功"去刷新页面，刷新后又重扫，
+  //   用户看到界面一直卡在「处理中… / 同步中…」。
+  // -------------------------------------------------------------------------
+  const noImport = await evaluateStable(`
+    (async () => {
+      // 造一个**空的**存档文件夹并切过去（模拟"文件夹里没有对话"）
+      const bucket = {};
+      const makeDir = (prefix) => ({
+        kind: 'directory',
+        name: prefix === '' ? '空存档' : prefix.split('/').filter(Boolean).pop(),
+        async getDirectoryHandle(child, opts) {
+          const key = prefix + child + '/';
+          if (bucket[key] === undefined) {
+            if (!opts || !opts.create) {
+              const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
+            }
+            bucket[key] = true;
+          }
+          return makeDir(prefix + child + '/');
+        },
+        async getFileHandle(fname, opts) {
+          const key = prefix + fname;
+          if (bucket[key] === undefined && !(opts && opts.create)) {
+            const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
+          }
+          return { kind: 'file', name: fname,
+            async createWritable() { return { write: async () => {}, close: async () => {} }; },
+            async getFile() { return new File([''], fname); } };
+        },
+        async removeEntry(fname) { delete bucket[prefix + fname]; },
+        async *values() {},
+        async queryPermission() { return 'granted'; },
+        async requestPermission() { return 'granted'; }
+      });
+      // 清空本地库 + 清掉同步标记 → 满足"全新浏览器"的两个前置条件
+      const open = () => new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo', 11);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      const db = await open();
+      for (const store of ['sessions','sessionSummaries','files']) {
+        if (!db.objectStoreNames.contains(store)) continue;
+        await new Promise((res, rej) => {
+          const tx = db.transaction([store], 'readwrite');
+          tx.objectStore(store).clear();
+          tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+        });
+      }
+      localStorage.removeItem('chat-demo:history-synced-at');
+      await window.__localstore.__setRootHandleForTest(makeDir(''));
+      const n = await window.__localstore.autoRestoreAfterConnect();
+      return JSON.stringify({ n: n, type: typeof n });
+    })()
+  `);
+  const ni = JSON.parse(noImport);
+  check(
+    'autoRestoreAfterConnect 返回数字而不是布尔值（类型契约）',
+    ni.type === 'number',
+    noImport
+  );
+  check(
+    '文件夹里没有可恢复的对话时返回 0（不会误触发刷新）',
+    ni.n === 0,
+    noImport
+  );
 } catch (err) {
   console.log(`\n测试异常终止: ${err.message}\n`);
   failed++;

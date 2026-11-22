@@ -1191,15 +1191,25 @@
 
   /**
    * 文件夹连接就绪后，尝试把对话自动读回来（仅在全新浏览器里生效）。
-   * 返回是否真的恢复了内容。
+   *
+   * @returns {Promise<number>} 真正恢复进来的对话数（0 = 什么都没恢复）
+   *
+   * ⚠ 必须返回**数量**而不是布尔值。
+   * maybeAutoRestoreHistory 在"文件夹里没有可恢复的对话"时会返回
+   * `{ restored: 0 }`（`r.sessions` 为 0 时也会走到 return，因为
+   * `if (r && r.sessions)` 对 0 是假 —— 但一旦它返回真值对象，
+   * 调用方就会当成"恢复成功"去刷新页面）。
+   * 旧写法 `return true` 于是让「恢复了个寂寞」也触发刷新 →
+   * 刷新后重扫文件夹 → 再判一次 → 再刷新。虽然 canAutoReload 有限流，
+   * 但用户看到的就是界面一直卡在「处理中… / 同步中…」。
    */
   async function autoRestoreAfterConnect(onProgress) {
     var res = await maybeAutoRestoreHistory(onProgress);
-    if (res && res.restored) {
+    var n = (res && res.restored) || 0;
+    if (n > 0) {
       emitSync();
-      return true;
     }
-    return false;
+    return n;
   }
 
   async function disconnect() {
@@ -6351,7 +6361,6 @@
       errRestore: '恢复失败：',
       doneSync: '同步完成：{sessions} 个对话',
       doneRestore: '已恢复 {sessions} 个对话，正在重新加载…',
-      doneRestoreConnect: '已从文件夹恢复对话，正在重新加载…',
       busy: '处理中…',
       needReconnect: '浏览器已收回文件夹权限，点击「重新连接」恢复自动保存',
       reconnect: '重新连接'
@@ -6490,7 +6499,6 @@
       errRestore: 'Restore failed: ',
       doneSync: 'Synced: {sessions} chats',
       doneRestore: 'Restored {sessions} chats, reloading…',
-      doneRestoreConnect: 'Restored chats from the folder, reloading…',
       busy: 'Working…',
       needReconnect:
         'The browser revoked folder access. Click "Reconnect" to resume auto-save.',
@@ -6916,12 +6924,42 @@
     rerender();
   }
 
+  /**
+   * 跑一个"忙"操作，期间界面显示「处理中…」并禁用按钮。
+   *
+   * ⚠ 必须带看门狗。
+   * 用户实测反馈过：界面一直卡在「处理中… / 同步中…」出不来。
+   * 原因不是某个函数抛错（那会走 finally），而是**整条链路挂住不返回** ——
+   * 例如导入一个很大的存档、或者被误判成"恢复成功"而反复刷新。
+   * 只要 fn 的 promise 永不 settle，finally 就永不执行，busy 永远为 true，
+   * 面板上所有按钮都被禁用，用户除了关标签页没有别的出路。
+   *
+   * 所以这里加一道硬上限：超时就把 busy 放掉，并在面板上说明真相。
+   * 被放弃的 fn 仍在后台跑（我们无法真正取消一个 promise），
+   * 但至少界面不再是死的。
+   */
+  var BUSY_TIMEOUT_MS = 120000; // 2 分钟；正常操作（含导入大存档）不会这么久
+  var busyWatchdog = null;
+
   async function withBusy(fn) {
     uiState.busy = true;
     rerender();
+    if (busyWatchdog) clearTimeout(busyWatchdog);
+    busyWatchdog = setTimeout(function () {
+      busyWatchdog = null;
+      if (!uiState.busy) return;
+      warn('操作超过 ' + BUSY_TIMEOUT_MS + 'ms 没有返回，强制放开界面上的「处理中」状态');
+      uiState.busy = false;
+      setMessage('操作超时了（可能存档太大）。已放开界面，可以重试或先点「立即同步」。', true);
+      rerender();
+    }, BUSY_TIMEOUT_MS);
     try {
       await fn();
     } finally {
+      if (busyWatchdog) {
+        clearTimeout(busyWatchdog);
+        busyWatchdog = null;
+      }
       uiState.busy = false;
       rerender();
     }
@@ -6952,23 +6990,29 @@
         var handle = await pickFolder();
         uiState.permission = 'granted';
 
-        // 1) 换浏览器 / 清空数据后第一次连接：先把存档读回来
+        // 1) 换浏览器 / 清空数据后第一次连接：先把存档读回来。
+        //    把进度报出来，否则大存档导入时界面只有「处理中…」，
+        //    看起来就像卡死了。
         var existing = await readAllSessions();
         if (!existing.length) {
-          var restored = false;
+          var n = 0;
           try {
-            restored = await autoRestoreAfterConnect();
+            n = await autoRestoreAfterConnect(function (done, total) {
+              setMessage('正在从文件夹读回对话… ' + done + '/' + total, false);
+            });
           } catch (e) {
             warn('连接后自动恢复失败：' + ((e && e.message) || e));
           }
-          if (restored) {
-            setMessage(t('doneRestoreConnect'), false);
+          if (n > 0) {
+            setMessage(t('doneRestore', { sessions: n }), false);
             // 应用只在启动时读一次 IndexedDB，必须刷新才会看到导入的对话
             setTimeout(function () {
-              requestReload('连接文件夹后自动恢复了对话');
+              requestReload('连接文件夹后自动恢复了 ' + n + ' 个对话');
             }, 800);
             return;
           }
+          // n === 0：文件夹里没有可恢复的对话，别刷新（旧写法会在这里
+          // 误判成"恢复成功"而反复刷新，界面一直卡在处理中）
         }
 
         // 2) 本地有内容（或文件夹里没有可恢复的存档）：正常对账
@@ -8443,10 +8487,15 @@
           if (state === 'granted') {
             // 全新浏览器（清空数据后重连）先把对话读回来，再对账，
             // 否则对账会把空库当成事实、把文件夹里的存档删掉。
+            //
+            // ⚠ 判据必须是 n > 0，不能是"真值"。autoRestoreAfterConnect 现在
+            // 返回数量；旧写法返回 true/false，而 maybeAutoRestoreHistory 在
+            // "文件夹里没有可恢复的对话"时也会返回一个真值对象，
+            // 于是启动时反复刷新 —— 页面一直卡在「处理中…」。
             try {
-              var restored = await autoRestoreAfterConnect();
-              if (restored) {
-                if (requestReload('自动恢复了对话')) return;
+              var restoredCount = await autoRestoreAfterConnect();
+              if (restoredCount > 0) {
+                if (requestReload('自动恢复了 ' + restoredCount + ' 个对话')) return;
               }
             } catch (e) {
               warn('自动恢复对话失败：' + ((e && e.message) || e));
