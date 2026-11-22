@@ -1229,6 +1229,27 @@
   var CLONE_HOVER = 'ls-pin-hover';
   /** 打开菜单期间强制把「...」显示出来（要量它的矩形，0×0 会算错位置） */
   var CLONE_FORCE = 'ls-pin-force-action';
+  /**
+   * 菜单开着期间钉在**所有行**上的标记：强制「...」保持 display:flex。
+   *
+   * ★ 这是「鼠标离开 ... 菜单就闪到左上角」的根因修复 ★
+   *
+   * 应用的 CSS 是 `.action-ff6fc9{display:none}`，只有
+   * `:is(.item-ff6fc9:hover,.item-ff6fc9.active-ff6fc9)` 时才 display:flex。
+   * 也就是说那枚「...」按钮**只在鼠标悬停那一行时才有尺寸**。
+   *
+   * 而 installCloneHover.sync 在**每一次 pointermove** 上都无条件摘掉
+   * `.ls-pin-hover`。用户"手移向菜单"这个动作必然产生 pointermove，
+   * 于是按钮立刻回到 display:none、矩形变 0×0 —— 应用在 ResizeObserver
+   * 里盯着这个锚点，尺寸一变就把菜单重算到左上角 (8,4)。
+   *
+   * 前面两次修复（pointerdown 不许撤、watchMenuClose 等菜单关了再撤）都
+   * 建立在"修正还在"的前提上，但按钮的显形状态是被 hover 逻辑单独摘掉的，
+   * 所以那两次都没治到根上。
+   *
+   * 现在改为：**菜单只要开着，按钮的显形状态就冻结**。菜单消失才解冻。
+   */
+  var PIN_HOLD = 'ls-pin-hold';
   /** 分节标题文案（i18n：应用是 zh-CN / en-US 两套） */
   var PIN_LABEL = (function () {
     try {
@@ -1252,6 +1273,12 @@
     /** 重试计时器与次数（见 schedulePinRetry） */
     retryTimer: null, retryCount: 0, retryBound: false
   };
+
+  /**
+   * 「菜单开着期间冻结按钮显形」这件事的记账。
+   * 见 holdActionUntilMenuCloses / installActionHoldTrigger。
+   */
+  var holdState = { active: false, obs: null, poll: null, startedAt: 0 };
 
   /**
    * 侧栏还没渲染出来时，安排一次重试。
@@ -2155,6 +2182,9 @@
     }, true);
 
     installPinPointerPatch();
+    // 兜底：不管菜单是谁打开的（键盘 / 程序化 / 应用自己重开），
+    // 只要它出现在页面上就冻结按钮显形，避免锚点缩回 0×0 把菜单弹到左上角。
+    installActionHoldTrigger();
   }
 
   /**
@@ -2421,6 +2451,17 @@
       if (!ev || !ev.target) return;
       var clones = document.querySelectorAll('.' + PIN_CLONE);
       if (!clones.length) return;
+      /**
+       * ★ 菜单开着的时候一律不摘 hover ★
+       *
+       * 这是"鼠标离开 ... 就闪到左上角"的根治点。
+       * 用户把指针从「...」移向菜单，途中每一次 pointermove 都会走到这里；
+       * 原来无条件摘掉 .ls-pin-hover → 按钮 display:none → 锚点 0×0
+       * → 应用 ResizeObserver 重算 → 菜单跳左上角。
+       * 菜单还开着，按钮就必须继续显形，所以这里直接不摘。
+       * （解冻由 holdActionUntilMenuCloses 的观察者负责：菜单消失后清标记。）
+       */
+      if (anyMenuOpen()) return;
       // 用坐标判定，不用 ev.target.closest：指针可能在按钮的 svg 里，
       // 也可能因为 tooltip 之类的浮层换了个 target，按坐标最稳。
       var x = ev.clientX;
@@ -2433,6 +2474,8 @@
       }
     };
     var clear = function () {
+      // 菜单开着就不清 —— 同上，清了会让锚点缩回 0×0
+      if (anyMenuOpen()) return;
       var clones = document.querySelectorAll('.' + PIN_CLONE + '.' + CLONE_HOVER);
       for (var i = 0; i < clones.length; i++) clones[i].classList.remove(CLONE_HOVER);
     };
@@ -2442,6 +2485,134 @@
     document.addEventListener('pointerdown', sync, true);
     document.addEventListener('mouseleave', clear, true);
     window.addEventListener('blur', clear);
+  }
+
+  /** 现在还挂着 PIN_HOLD 标记的行 */
+  function heldRows() {
+    var out = [];
+    try {
+      var all = document.querySelectorAll('.' + PIN_HOLD);
+      for (var i = 0; i < all.length; i++) out.push(all[i]);
+    } catch (e) { /* ignore */ }
+    return out;
+  }
+
+  /** 解冻：把 PIN_HOLD 摘掉。只在菜单真的没了之后调用。 */
+  function releaseActionHold() {
+    var rows = heldRows();
+    for (var i = 0; i < rows.length; i++) {
+      try { rows[i].classList.remove(PIN_HOLD); } catch (e) { /* ignore */ }
+    }
+    if (holdState.poll) {
+      try { clearInterval(holdState.poll); } catch (e) { /* ignore */ }
+      holdState.poll = null;
+    }
+    if (holdState.obs) {
+      try { holdState.obs.disconnect(); } catch (e) { /* ignore */ } holdState.obs = null;
+    }
+    holdState.active = false;
+  }
+
+  /**
+   * 冻结「...」的显形状态，直到菜单从 DOM 里消失。
+   *
+   * ★ 用户报的「鼠标离开 ... 菜单就闪到左上角」的根因修复 ★
+   *
+   * 为什么必须冻结**所有**行、而不是只冻结克隆行：
+   *   应用的浮层定位量的是"菜单拥有者那一行里的 anchor"，而菜单拥有者
+   *   可能是真身行（克隆行只是把点击转发给真身按钮）。真身行的「...」
+   *   同样受 `.item-ff6fc9:hover .action-ff6fc9{display:flex}` 控制，
+   *   指针一旦离开那一行，它也会缩回 0×0。两边都钉住才彻底。
+   *
+   * 为什么用 MutationObserver + 轮询双保险：
+   *   菜单是应用渲染的，我们不能反过来改它的状态；只能等它消失。
+   *   单靠 MutationObserver 在"菜单被应用整个替换但很快复原"的场景下
+   *   可能漏掉，所以再加一个轮询兜底。
+   */
+  function holdActionUntilMenuCloses() {
+    // 已经把行钉住了就不重复装观察者
+    if (holdState.active) return;
+
+    // 立刻钉住所有行（趁 pointermove 还没把 hover 摘掉）
+    var rows = [];
+    try {
+      rows = document.querySelectorAll(SEL.item);
+    } catch (e) { /* ignore */ }
+    for (var i = 0; i < rows.length; i++) {
+      try { rows[i].classList.add(PIN_HOLD); } catch (e2) { /* ignore */ }
+    }
+
+    holdState.active = true;
+    var seenOpen = anyMenuOpen();
+
+    var finish = function () {
+      if (anyMenuOpen()) return;
+      // 再等两帧：应用可能刚重排完，确保它量到的是正确坐标
+      requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+          if (anyMenuOpen()) return;   // 期间又开了一个，继续钉着
+          releaseActionHold();
+        });
+      });
+      releaseActionHold();
+    };
+
+    var tick = function () {
+      if (anyMenuOpen()) { seenOpen = true; return; }
+      if (!seenOpen) return;
+      finish();
+    };
+
+    try {
+      holdState.obs = new MutationObserver(tick);
+      holdState.obs.observe(document.body, { childList: true, subtree: true });
+    } catch (e3) { /* ignore */ }
+
+    holdState.poll = setInterval(function () {
+      if (anyMenuOpen()) { seenOpen = true; return; }
+      // 菜单一直没出现（点击被吞了）：3 秒后解冻，避免一直钉着
+      if (seenOpen) finish();
+      else if (performance.now() - holdState.startedAt > 3000) releaseActionHold();
+    }, 120);
+    holdState.startedAt = performance.now();
+  }
+
+  /**
+   * 全局触发器：只要页面上出现 `.menu-_5f384`，立刻冻结按钮显形。
+   *
+   * ★ 为什么需要这个"兜底入口" ★
+   *
+   * pointerdown 那条路径要求用户先把指针**移到「...」上再按下**。但菜单
+   * 也可能通过别的路径打开（键盘 Enter、程序化点击、应用内部重开），
+   * 那些路径不会经过 installPinPointerPatch，于是没有任何冻结。
+   * 而冻结这动作本身是无害的、也不需要知道是谁打开的菜单：
+   * 菜单存在 ⇒ 按钮必须保持显形。
+   *
+   * 所以直接盯 DOM：菜单一出现就冻结，菜单消失由 holdActionUntilMenuCloses
+   * 里的观察者/轮询负责解冻。两条路径最终都收敛到同一套冻结逻辑。
+   */
+  function installActionHoldTrigger() {
+    if (pinnedState.holdTriggerBound) return;
+    pinnedState.holdTriggerBound = true;
+
+    var kick = function () {
+      if (holdState.active) return;
+      if (!anyMenuOpen()) return;
+      holdActionUntilMenuCloses();
+    };
+
+    try {
+      var obs = new MutationObserver(kick);
+      obs.observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* ignore */ }
+
+    // MutationObserver 对"节点没增删、只是显示出来"的情况看不到，补一个轮询。
+    // 60ms 够快（人眼看不出一帧以上的延迟），开销可以忽略（只查一次 querySelector）。
+    setInterval(function () {
+      if (holdState.active) return;
+      if (!anyMenuOpen()) return;
+      holdActionUntilMenuCloses();
+    }, 60);
   }
 
   /** 按标题找侧栏里的真身项（克隆不算） */

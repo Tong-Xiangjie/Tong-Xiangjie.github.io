@@ -527,9 +527,53 @@ function main() {
         `  index.html 会引用它，缺失将导致页面 404 但功能静默失效。已中止。`
     );
   }
-  const bridgeSource = readFileSync(bridgePath, 'utf8');
+  const bridgeSourceRaw = readFileSync(bridgePath, 'utf8');
+
+  /**
+   * 把功能扩展层的内容哈希写进桥接层。
+   *
+   * ★ 为什么必须这么做 ★
+   *
+   * 桥接层加载功能扩展层时用的是 `?v=' + BRIDGE_VERSION`，而 BRIDGE_VERSION
+   * 是**手写常量**（1.2.0）。于是只改 localstore-features.js / .css 的话，
+   * 两个文件的 URL 一个字都不变 → 浏览器继续用缓存里的旧文件 →
+   * 「我改了代码、也刷新了，但页面行为没变」。
+   * 这个坑真的踩到了：菜单跳左上角的修复只改 features.js，推上线等于没推。
+   *
+   * 修法：把两个文件的内容哈希注入桥接层，再**把注入后的桥接层内容**拿去
+   * 算指纹。于是「改 features」⇒「桥接层指纹变」⇒「index.html 里的 ?v 变」
+   * ⇒「桥接层 URL 变」⇒ 浏览器必然重新拉取，并拿到新的 features URL。
+   * 一处改，整条链都跟着换，不需要任何人记得手写版本号。
+   */
+  const FEATURES_FILES = ['localstore-features.js', 'localstore-features.css'];
+  const featuresHashes = {};
+  for (const name of FEATURES_FILES) {
+    const p = join(ROOT, name);
+    featuresHashes[name] = existsSync(p) ? shortHash(readFileSync(p, 'utf8')) : 'missing';
+  }
+  const FEATURES_JS_HASH = featuresHashes['localstore-features.js'];
+  const FEATURES_CSS_HASH = featuresHashes['localstore-features.css'];
+
+  // 与桥接层里 `var FEATURES_JS_VERSION = '...';` 这一行一一对应
+  const FEATURES_VER_RE = /var FEATURES_JS_VERSION = '[^']*';\s*\n\s*var FEATURES_CSS_VERSION = '[^']*';/;
+  const FEATURES_VER_STMT =
+    `var FEATURES_JS_VERSION = '${FEATURES_JS_HASH}';\n` +
+    `var FEATURES_CSS_VERSION = '${FEATURES_CSS_HASH}';`;
+  if (!FEATURES_VER_RE.test(bridgeSourceRaw)) {
+    throw new Error(
+      '【补丁失败】在 localstore-bridge.js 里找不到 FEATURES_JS_VERSION / ' +
+        'FEATURES_CSS_VERSION 声明。\n  这两个常量用于给功能扩展层做缓存击穿，' +
+        '缺了会导致「改了 features 却不生效」。已中止。'
+    );
+  }
+  const bridgeSource = bridgeSourceRaw.replace(FEATURES_VER_RE, FEATURES_VER_STMT);
+
   const bridgeVersion = (bridgeSource.match(/BRIDGE_VERSION\s*=\s*'([^']+)'/) || [])[1] || '?';
   const bridgeHash = shortHash(bridgeSource);
+  console.log(
+    `  ✓ localstore-bridge.js 存在（v${bridgeVersion}，指纹 ${bridgeHash}）`
+  );
+  console.log(`  ✓ 功能扩展层指纹：js=${FEATURES_JS_HASH} css=${FEATURES_CSS_HASH}`);
   const BRIDGE_TAG =
     BRIDGE_TAG_PREFIX + '?v=' + bridgeHash + BRIDGE_TAG_SUFFIX;
   console.log(
@@ -556,11 +600,18 @@ function main() {
 
   const jsChanged = model.changed || keyReads.changed || placeholder.changed;
   const jsFinal = placeholder.text;
+  // 功能扩展层指纹变了就要把桥接层写回去（否则 URL 不换，修复推不出去）
+  const bridgeChanged = bridgeSource !== bridgeSourceRaw;
 
   if (jsChanged) writeFileSync(MAIN_JS, jsFinal);
+  if (bridgeChanged) writeFileSync(bridgePath, bridgeSource);
   if (html.changed) writeFileSync(INDEX_HTML, html.text);
 
-  const touched = [jsChanged && 'main.6fd9c886.js', html.changed && 'index.html']
+  const touched = [
+    jsChanged && 'main.6fd9c886.js',
+    bridgeChanged && 'localstore-bridge.js',
+    html.changed && 'index.html'
+  ]
     .filter(Boolean)
     .join(', ');
 

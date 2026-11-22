@@ -96,9 +96,13 @@ const cMs = Math.max(0, collapse.times[ci] - collapse.times[0]);
 //   · 第一个采样点来得足够早（< 150ms，动画还没结束）却仍然一步到位
 //     → 真·瞬跳，判失败；
 //   · 第一个采样点已经晚于动画时长 → 采不到，不能据此判失败。
+//   · 第一个采样点是**负延迟**（动画还没开始就采到了）→ 这一轮压根没测到动画，
+//     更不能判失败。原实现漏了这一种：负延迟比 150 小，sampledInTime 反而为
+//     true，于是把"没测到"判成了"瞬跳"（实测首点延迟 -1ms，误报失败）。
 //   另外只要采到过中间值（distinct ≥ 2），就直接证明它是渐进的。
 const sawIntermediate = collapse.distinct >= 2;
-const sampledInTime = collapse.firstSampleDelay < 150;
+// 首点必须在点击之后（>= 0ms）且早于动画结束（< 150ms），这一轮才算真的测到
+const sampledInTime = collapse.firstSampleDelay >= 0 && collapse.firstSampleDelay < 150;
 check('收起不是瞬跳（走完全程用了足够的时间，而不是一步到位）',
   cTraveled <= 200 || cMs >= 100 || sawIntermediate || !sampledInTime,
   '位移 ' + cTraveled + 'px 用时 ' + cMs + 'ms，采样 ' + collapse.trace.length +

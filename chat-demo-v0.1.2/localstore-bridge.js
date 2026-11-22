@@ -88,6 +88,22 @@
 
   var BRIDGE_VERSION = '1.2.0';
 
+  /**
+   * 功能扩展层（localstore-features.js / .css）的内容指纹。
+   *
+   * ★ 这两行由 tools/apply-patch.mjs 在打包时**自动改写**，不要手改 ★
+   *
+   * 为什么需要：这两个文件是固定名，浏览器/服务器一旦缓存就一直用旧的。
+   * 原来它们只带 BRIDGE_VERSION（手写常量）当缓存戳，于是**只改 features
+   * 不改 bridge** 时 URL 完全不变，改了等于没改 —— 菜单跳左上角的修复
+   * 就这么白推过一次。
+   *
+   * 现在改成内容哈希：features 一变 → 这里的值变 → 桥接层内容变 →
+   * 桥接层指纹变 → index.html 里的 ?v 变 → 浏览器必然重新拉取。
+   */
+  var FEATURES_JS_VERSION = '308d8458';
+var FEATURES_CSS_VERSION = 'ba3bc949';
+
   // -------------------------------------------------------------------------
   // 小工具
   // -------------------------------------------------------------------------
@@ -9311,7 +9327,7 @@
         var css = document.createElement('link');
         css.id = FEATURES_CSS_ID;
         css.rel = 'stylesheet';
-        css.href = 'localstore-features.css?v=' + BRIDGE_VERSION;
+        css.href = 'localstore-features.css?v=' + FEATURES_CSS_VERSION;
         css.onerror = function () {
           warn('功能扩展样式加载失败（功能仍可用，只是没有样式）');
         };
@@ -9320,7 +9336,7 @@
       if (document.getElementById(FEATURES_JS_ID) || window.__lsFeatures) return;
       var js = document.createElement('script');
       js.id = FEATURES_JS_ID;
-      js.src = 'localstore-features.js?v=' + BRIDGE_VERSION;
+      js.src = 'localstore-features.js?v=' + FEATURES_JS_VERSION;
       js.async = false; // 保持执行顺序，别插到应用 bundle 后面去
       js.onerror = function () {
         warn('功能扩展脚本加载失败（5 个附加功能不可用，主功能不受影响）');
