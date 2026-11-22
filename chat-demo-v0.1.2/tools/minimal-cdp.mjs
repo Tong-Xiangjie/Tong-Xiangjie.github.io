@@ -323,7 +323,7 @@ export class CDP extends EventEmitter {
     socket.write(Buffer.concat([header, masked]));
   }
 
-  send(method, params = {}) {
+  send(method, params = {}, timeoutMs = 60000) {
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -338,12 +338,17 @@ export class CDP extends EventEmitter {
           this.pending.delete(id);
           reject(new Error(`CDP 调用超时: ${method}`));
         }
-      }, 60000);
+      }, timeoutMs);
     });
   }
 
-  /** 在页面里执行表达式；awaitPromise 让 async 表达式可用 */
-  async evaluate(expression, { awaitPromise = true } = {}) {
+  /**
+   * 在页面里执行表达式；awaitPromise 让 async 表达式可用。
+   *
+   * timeoutMs 可放大：导入一个大备份包（几百 MB）在页面里解码 base64 +
+   * 写 IndexedDB 可能要几分钟，默认 60 秒会误判成超时。
+   */
+  async evaluate(expression, { awaitPromise = true, timeoutMs = 60000 } = {}) {
     const res = await this.send('Runtime.evaluate', {
       expression,
       awaitPromise,
