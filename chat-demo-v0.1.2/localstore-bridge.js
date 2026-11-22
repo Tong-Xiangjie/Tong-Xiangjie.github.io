@@ -774,34 +774,93 @@
   }
 
   /**
-   * "这块盘现在动不了"的短期记忆。
+   * "这块盘现在动不了"的短期记忆 + 熔断器。
    *
    * 用户实测：E: 盘上的文件夹，`queryPermission` 挂了，连**真实写入探针**
    * （getFileHandle create → createWritable → write → close）也一起挂。
    * 说明不是权限问题，而是**那块盘本身没有响应**（休眠的外置盘/移动硬盘、
-   * 或掉线的网络盘）。这种情况下任何一次文件系统调用都要白等一个超时。
+   * 或掉线的网络盘）。
    *
-   * 而启动流程会连续检查很多次权限，于是每次都要等 3 秒 + 3 秒（探针），
-   * 实测启动被拖了 ~40 秒（「恢复设置 7814ms」「恢复 API Key 7990ms」…）。
-   * 记录下"刚试过、动不了"，短时间内直接返回，不再反复重试同一个坏盘。
+   * ⚠ 这不只是"慢"的问题，而是会把整个 Chrome 拖死（用户查明的机制）：
+   * 本库对 File System Access 的调用会进入浏览器进程，而**GPU 进程是所有标签
+   * 共用的**。持续不断地发起必然挂起的文件系统调用，会让它卡到被 Chrome 看门狗
+   * 判定无响应并强制终止（RESULT_CODE_KILLED）—— 于是**所有标签一起崩**，
+   * 不是单个标签的问题。
+   *
+   * 更要命的是本库有两处会**持续**发起这些调用：
+   *   1. 文件夹监看每 3 秒轮询一次（WATCH_INTERVAL）；
+   *   2. 自动保存被对话变化反复触发。
+   * 盘一旦没响应，这两处就变成永不停歇的请求流。所以必须熔断：
+   * 连续失败后**彻底停止**一切文件系统调用，只允许用户手动重试。
    */
   var PERMISSION_RETRY_COOLDOWN_MS = 30000;
+
+  /**
+   * 连续失败次数 → 退避时间。
+   * 3s 这种"每轮都试"的模式正是把 GPU 进程刷爆的原因，必须指数退避：
+   * 一次失败 30 秒、两次 2 分钟、三次 10 分钟，之后基本不再自动试。
+   */
+  var PERMISSION_BACKOFF_STEPS = [30000, 120000, 600000];
+
+  /** 用户手动触发过重试后，才允许重新自动尝试（否则一直保持熔断） */
+  var permManualRetryAllowed = false;
+
   var permCache = { result: null, at: 0 };
 
-  /** 用户重新选文件夹 / 页面重新可见时调用：作废缓存，给一次干净的重试 */
-  function invalidatePermissionCache() {
+  /** 连续失败次数（熔断依据） */
+  var permFailStreak = 0;
+
+  /**
+   * 本页面加载以来，我们向 File System Access 发起了多少次调用。
+   *
+   * 这是判断"是否还在持续刷请求"的直接指标 —— 用户遇到的崩溃是
+   * "持续调用把共用 GPU 进程拖到被看门狗杀掉"，所以关键不只是最终结果，
+   * 而是**调用次数会不会一直涨**。熔断生效后这个数字应该停在很小的值上。
+   */
+  var fsCallCount = 0;
+
+  /** 因为熔断而**没有**发出的文件系统调用次数（省下来的请求数） */
+  var fsCallsAvoided = 0;
+
+  function permBackoffMs() {
+    if (permFailStreak <= 0) return PERMISSION_RETRY_COOLDOWN_MS;
+    // 第一次失败用 30 秒，之后 2 分钟、10 分钟，封顶 10 分钟。
+    // 封顶是必要的：如果用户一直不来点「重连」，自动恢复不应该被推到几小时后。
+    var i = Math.min(permFailStreak, PERMISSION_BACKOFF_STEPS.length) - 1;
+    return PERMISSION_BACKOFF_STEPS[i];
+  }
+
+  /**
+   * 现在是否处于熔断中（盘没响应，且还没到下次允许尝试的时间）。
+   * 所有自动路径都必须先问这个，避免继续往一个坏盘上打请求。
+   */
+  function permCircuitOpen() {
+    if (!permCache.result || permCache.result === 'granted') return false;
+    return (Date.now() - permCache.at) < permBackoffMs();
+  }
+
+  /** 熔断下还剩多久才允许再试（毫秒），用于界面上说明"正在等待" */
+  function permRetryInMs() {
+    if (!permCircuitOpen()) return 0;
+    return permBackoffMs() - (Date.now() - permCache.at);
+  }
+
+  /** 用户重新选文件夹 / 主动重连 / 页面重新可见时调用：作废缓存，给一次干净的重试 */
+  function invalidatePermissionCache(byUser) {
     permCache.result = null;
     permCache.at = 0;
+    permFailStreak = 0;
+    permManualRetryAllowed = !!byUser;
   }
 
   /** 确保目录句柄可写；需要用户手势时返回 'prompt' */
   async function ensurePermission(handle, request) {
     if (!handle) return 'denied';
 
-    // 刚试过而且动不了 → 冷却期内直接复用结果，不再白等超时。
-    // 只对"失败"结果做冷却：成功的结果本来就会立刻返回，不需要缓存。
-    if (permCache.result && permCache.result !== 'granted'
-        && (Date.now() - permCache.at) < PERMISSION_RETRY_COOLDOWN_MS) {
+    // 熔断中：直接返回，**不碰任何文件系统 API**。
+    // 这是防止"请求流拖死共享 GPU 进程"的关键一道闸。
+    if (permCircuitOpen()) {
+      fsCallsAvoided++;
       return permCache.result;
     }
 
@@ -810,35 +869,45 @@
     permissionStuck = false;
     var opts = { mode: 'readwrite' };
     try {
+      fsCallCount++;
       var state = await withPermissionTimeout(handle.queryPermission(opts), 'queryPermission');
       if (state === 'granted') {
-        invalidatePermissionCache();
+        invalidatePermissionCache(false);
         return 'granted';
       }
       if (!request) {
         permCache = { result: state, at: Date.now() };
+        permFailStreak = 0;   // 能正常问答，不算失败
         return state;
       }
       state = await withPermissionTimeout(handle.requestPermission(opts), 'requestPermission');
       permCache = { result: state, at: Date.now() };
+      permFailStreak = 0;
       return state;
     } catch (e) {
       // 问不到权限状态。**先别急着判死刑** —— 可能只是查询接口卡住，
-      // 而真实写入能力是好的（用户实测就是这种）。直接试写一次来判定。
+      // 而真实写入能力是好的。直接试写一次来判定。
       //
       // 注意：探针成功才返回 'granted'；失败一律 'denied'，绝不"赌"权限。
       // 赌错会让后续写入抛错，反而更难查。
       try {
+        fsCallCount++;
         var ok = await withPermissionTimeout(probeWritable(handle), '写入探针');
         if (ok) {
           log('权限查询卡住，但实测写入可用 —— 按已授权继续（句柄本身是好的）');
-          invalidatePermissionCache();
+          invalidatePermissionCache(false);
           return 'granted';
         }
       } catch (e2) { /* 探针也卡住，往下走 */ }
 
+      // 连真实写入都挂 → 基本可以断定是"盘没有响应"。
+      // 记一次失败并退避；退避期间所有自动路径都会被 permCircuitOpen() 挡住。
       permissionStuck = true;
+      permFailStreak++;
       permCache = { result: 'denied', at: Date.now() };
+      warn('文件系统无响应（连续第 ' + permFailStreak + ' 次）—— '
+        + Math.round(permBackoffMs() / 1000) + ' 秒内不再自动尝试，'
+        + '以免持续请求拖死浏览器进程');
       return 'denied';
     }
   }
@@ -1365,6 +1434,17 @@
   /** 带串行化与状态上报的快照入口 */
   async function snapshot(reason) {
     if (!supportsFs) throw new Error('当前浏览器不支持文件夹写入');
+
+    // 熔断中：直接拒绝，**不发起任何文件系统请求**。
+    // 这是最后一道闸 —— 手动「立即同步」也可能在盘坏掉时被点到，
+    // 而每一次尝试都会往浏览器进程里塞一批必然挂起的调用。
+    if (permCircuitOpen()) {
+      fsCallsAvoided++;
+      var waitS = Math.ceil(permRetryInMs() / 1000);
+      throw new Error('磁盘无响应，已暂停同步（约 ' + waitS
+        + ' 秒后可自动重试；也可点「更换文件夹」重新选择）');
+    }
+
     var root = await getRootHandle();
     if (!root) throw new Error('尚未选择本地文件夹');
 
@@ -1458,6 +1538,10 @@
     if (lsGet(LS_AUTOSYNC) === 'false') return;
     if (!supportsFs) return;
     if (!dirCache && !lsGet(LS_FOLDER)) return;
+    // 熔断中（盘没响应）：不要再排自动保存。
+    // 自动保存会被对话变化反复触发，对一个坏盘就是"持续的请求流"，
+    // 而 File System Access 的请求会进浏览器进程、拖垮共用的 GPU 进程。
+    if (permCircuitOpen()) return;
 
     clearTimeout(debounceTimer);
     debounceTimer = setTimeout(function () {
@@ -1552,8 +1636,8 @@
     if (perm !== 'granted') {
       throw new Error('未获得文件夹读写权限');
     }
-    // 刚拿到一个全新句柄（用户亲手选的），之前的"这块盘动不了"记忆作废
-    invalidatePermissionCache();
+    // 用户亲手选了文件夹：作废熔断与冷却，并且允许后续自动重试
+    invalidatePermissionCache(true);
 
     // 句柄要存进 IndexedDB 才能"下次打开还记得这个文件夹"。
     //
@@ -1771,6 +1855,11 @@
    * 哈希存下来给后面的轮询用，避免每次都重读全部文件。
    */
   async function reconcileFolderOnBoot() {
+    // 熔断中：不发起任何文件系统读取。这是防"请求流拖垮浏览器进程"的闸门之一。
+    if (permCircuitOpen()) {
+      watchState.lastError = '磁盘无响应，已暂停文件夹监看';
+      return 0;
+    }
     var list = await scanSessionFiles();
     // 读不到（还没连文件夹 / 没权限）时不能算「对过账」，否则清理闸门会变成盲删。
     // 但"目录还不存在"是另一回事：那说明这个文件夹还没写过存档，
@@ -1883,6 +1972,10 @@
   async function pollFolderForChanges() {
     if (syncState.running) return;                 // 自己正在写盘，先别读
     if (document.visibilityState === 'hidden') return; // 后台标签页不用管
+    // 熔断中：不扫文件夹。这是最关键的一道闸 —— 监看是**每 3 秒**跑一次的，
+    // 盘没响应时它会变成永不停歇的文件系统请求流，把共用的浏览器/GPU 进程
+    // 拖到被看门狗杀掉（用户遇到的"所有标签一起崩"）。
+    if (permCircuitOpen()) return;
     var list;
     try {
       list = await scanSessionFiles();
@@ -2000,6 +2093,10 @@
     // 测试可以用 localStorage 覆盖，免得等太久
     var forced = Number(lsGet('chat-demo:ls-watch-ms'));
     if (isFinite(forced) && forced > 0) return forced;
+    // 熔断中（盘没响应）：彻底停掉轮询，而不是继续每 3 秒打一轮必然挂起的
+    // 文件系统调用。持续请求会把共用的浏览器/GPU 进程拖到被看门狗杀掉，
+    // 那是"所有标签一起崩"的根源。这里返回一个极长间隔，等于暂停监看。
+    if (permCircuitOpen()) return 600000;
     return (Date.now() - lastActivityAt) < 30000 ? WATCH_INTERVAL : WATCH_IDLE_INTERVAL;
   }
 
@@ -2090,8 +2187,8 @@
   async function reconnect() {
     var root = await getRootHandle();
     if (!root) throw new Error('没有已保存的文件夹');
-    // 这是用户主动点「重新连接」，属于人工重试：作废冷却，真正再试一次
-    invalidatePermissionCache();
+    // 用户主动点「重新连接」，属于人工重试：作废熔断，真正再试一次
+    invalidatePermissionCache(true);
     var perm = await ensurePermission(root, true);
     if (perm !== 'granted') throw new Error('授权被拒绝');
     dirCache = root;
@@ -9238,6 +9335,28 @@
       // 更根本的原因是：这里引用的几个状态变量都是 var、初始化在本行**之后**，
       // 直接取值会拿到 undefined（外面以前就是这样拿到 undefined 的）。
       state: function () { return syncState; },
+
+      /**
+       * 磁盘熔断器状态。排查"还在不在刷文件系统请求"用这个：
+       *   copy(JSON.stringify(window.__localstore.fsBreaker(), null, 2))
+       * `调用次数` 应该停住不涨；`熔断中: true` 表示已停止自动尝试。
+       */
+      fsBreaker: function () {
+        return {
+          调用次数: fsCallCount,
+          连续失败: permFailStreak,
+          熔断中: permCircuitOpen(),
+          再等毫秒: permRetryInMs(),
+          上次结果: permCache.result,
+          上次时间: permCache.at ? new Date(permCache.at).toISOString() : null,
+          已避开写盘: fsCallsAvoided
+        };
+      },
+      /** 清掉熔断并立刻重试一次（用户手动排障用） */
+      retryFsNow: function () {
+        invalidatePermissionCache(true);
+        return { ok: true, note: '已解除熔断，下一次同步会真正尝试' };
+      },
 
       onSync: onSync,
       pickFolder: pickFolder,
