@@ -7005,9 +7005,22 @@
           }
           if (n > 0) {
             setMessage(t('doneRestore', { sessions: n }), false);
-            // 应用只在启动时读一次 IndexedDB，必须刷新才会看到导入的对话
+            // 应用只在启动时读一次 IndexedDB，必须刷新才会看到导入的对话。
+            //
+            // ⚠ 排队刷新之前必须先把 busy 放掉。
+            // canAutoReload() 有 8 秒闸门（防止页面闪个不停），如果这次刷新
+            // 被闸门拦下，页面**不会**跳转 —— 而 busy 还是 true，
+            // 面板就永远停在「处理中…」，所有按钮禁用。
+            // 这正是用户反馈的"卡在 ChatHistory · 处理中…"。
+            uiState.busy = false;
+            rerender();
             setTimeout(function () {
-              requestReload('连接文件夹后自动恢复了 ' + n + ' 个对话');
+              if (requestReload('连接文件夹后自动恢复了 ' + n + ' 个对话')) return;
+              // 刷新被闸门拦下：告诉用户手动刷一下，界面保持可用
+              setMessage(
+                '已从文件夹读回 ' + n + ' 个对话。请手动刷新页面（Ctrl+Shift+R）查看。',
+                false
+              );
             }, 800);
             return;
           }
@@ -8355,24 +8368,40 @@
     }
   }
 
-  /** 需要刷新页面才能让改动生效时的统一出口 */
-  function requestReload(reason) {
-    // 留一条带调用栈的痕迹，方便日后定位「是什么在刷新页面」
+  /**
+   * 自动刷新记录。
+   *
+   * 为什么要有：自动刷新（恢复对话 / 恢复设置 / 恢复 Key 之后）如果判断写错，
+   * 就会变成"刷新 → 又触发 → 又刷新"的死循环，用户看到的是页面不停闪动。
+   * 这里把**每一次打算刷新**的理由与调用栈都留在 window 上，
+   * 出问题时在控制台一眼就能看出是谁在刷：
+   *   window.__lsReloadLog
+   * （也保留被闸门拦下的记录，标 blocked: true）
+   */
+  function rememberReload(reason, blocked) {
     try {
-      if (window.__lsReloadLog) {
-        window.__lsReloadLog.push({
-          reason: reason,
-          at: Date.now(),
-          stack: String(new Error().stack || '').split('\n').slice(1, 5).join(' | ')
-        });
-      }
+      var log = (window.__lsReloadLog = window.__lsReloadLog || []);
+      log.push({
+        reason: reason,
+        blocked: !!blocked,
+        at: Date.now(),
+        stack: String(new Error().stack || '').split('\n').slice(1, 6).join(' | ')
+      });
+      if (log.length > 40) log.shift();
     } catch (e) {
       /* ignore */
     }
+  }
+
+  /** 需要刷新页面才能让改动生效时的统一出口 */
+  function requestReload(reason) {
     if (!canAutoReload()) {
+      // 被闸门拦下也要记一笔 —— "界面卡住不刷新"往往就是这里拦的
+      rememberReload(reason, true);
       warn('已阻止重复自动刷新（' + reason + '）：短时间内刷新过，为避免页面闪动而放弃');
       return false;
     }
+    rememberReload(reason, false);
     log('即将刷新页面：' + reason);
     location.reload();
     return true;
@@ -8552,7 +8581,18 @@
           lastError: syncState.lastError,
           lastStats: syncState.lastStats
         },
-        watch: JSON.parse(JSON.stringify(watchState || {}))
+        watch: JSON.parse(JSON.stringify(watchState || {})),
+        // 与"界面卡在 处理中… / 页面不刷新"直接相关的现场：
+        //   busy        —— 面板是不是还锁着（true = 卡住了）
+        //   reloadLog   —— 谁想刷新、哪次被 8 秒闸门拦下（blocked: true）
+        ui: {
+          busy: uiState.busy,
+          message: uiState.message || null,
+          permission: uiState.permission || null
+        },
+        reloadLog: (function () {
+          try { return (window.__lsReloadLog || []).slice(-12); } catch (e) { return []; }
+        })()
       };
 
       // --- 1. 文件夹句柄还在不在、权限还给不给 ---
@@ -8697,6 +8737,25 @@
       },
       /** 当前是不是处于「处理中」状态（排查用） */
       isBusy: function () { return uiState.busy; },
+      /**
+       * 谁在刷新页面 / 哪次刷新被闸门拦下了（排查"界面卡住不刷新"用）。
+       * 被拦下的记录带 blocked: true 和调用栈。
+       */
+      reloadLog: function () {
+        try { return (window.__lsReloadLog || []).slice(); } catch (e) { return []; }
+      },
+      /**
+       * 只给测试用：走一遍刷新闸门判断并记录，但**不真的刷新**。
+       * 用来验证"被闸门拦下时会留下 blocked 记录"。
+       */
+      __requestReloadForTest: function (reason) {
+        var ok = canAutoReload();
+        rememberReload(reason, !ok);
+        if (!ok) return false;
+        // 真的会刷新就撤回闸门时间戳，避免污染后续测试
+        try { sessionStorage.removeItem(RELOAD_GUARD_KEY); } catch (e) { /* ignore */ }
+        return true;
+      },
       LS_HISTORY_SYNCED_AT: LS_HISTORY_SYNCED_AT,
       loadFromFolder: loadFromFolder,
       readManifest: readManifest,

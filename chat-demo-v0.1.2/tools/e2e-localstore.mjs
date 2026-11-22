@@ -1019,6 +1019,64 @@ try {
     ni.n === 0,
     noImport
   );
+
+  // -------------------------------------------------------------------------
+  // ★ 回归：界面不能永远卡在「处理中…」★
+  //   用户实测反馈过界面一直停在 处理中… / 同步中… 出不来，
+  //   所有按钮被禁用，只能关标签页。这里锁住三个逃生机制。
+  // -------------------------------------------------------------------------
+  const stuck = JSON.parse(await evaluateStable(`
+    (async () => {
+      const L = window.__localstore;
+      // 1) 手动逃生舱
+      const before = L.isBusy();
+      const after = L.unstick();
+      return JSON.stringify({
+        before: before,
+        afterBusy: after && after.busy,
+        isBusyNow: L.isBusy(),
+        hasReloadLog: Array.isArray(L.reloadLog())
+      });
+    })()
+  `));
+  check('isBusy() 可用（能查出面板是否还锁着）', stuck.before === false, JSON.stringify(stuck));
+  check('unstick() 能把「处理中」强制放开', stuck.isBusyNow === false, JSON.stringify(stuck));
+  check('reloadLog() 可用（能查出是谁要刷新）', stuck.hasReloadLog === true, JSON.stringify(stuck));
+
+  // 2) 刷新被 8 秒闸门拦下时，必须留下 blocked 记录，
+  //    否则"界面卡住不刷新"根本无从排查
+  const blockedLog = JSON.parse(await evaluateStable(`
+    (async () => {
+      const L = window.__localstore;
+      // 先把闸门时间戳设成"刚刚"，这样下一次请求一定被拦
+      sessionStorage.setItem('chat-demo:auto-reload-at', String(Date.now()));
+      const ok = L.__requestReloadForTest('测试：故意触发闸门');
+      const log = L.reloadLog();
+      const last = log[log.length - 1] || null;
+      sessionStorage.removeItem('chat-demo:auto-reload-at');
+      return JSON.stringify({ ok: ok, last: last });
+    })()
+  `));
+  check(
+    '刷新被闸门拦下时记录 blocked:true（可排查）',
+    blockedLog.ok === false && blockedLog.last && blockedLog.last.blocked === true,
+    JSON.stringify(blockedLog)
+  );
+  check(
+    '被拦下的记录带原因与调用栈',
+    blockedLog.last && /测试：故意触发闸门/.test(blockedLog.last.reason || '') &&
+      typeof blockedLog.last.stack === 'string' && blockedLog.last.stack.length > 0,
+    JSON.stringify(blockedLog.last)
+  );
+
+  // 3) syncDoctor 必须把 UI/刷新现场一起报出来（用户只跑一条命令就够）
+  const doc = JSON.parse(await evaluateStable(
+    `(async () => JSON.stringify(await window.__localstore.syncDoctor()))()`
+  ));
+  check('syncDoctor 带 ui.busy（面板是否锁着）',
+    doc.ui && typeof doc.ui.busy === 'boolean', JSON.stringify(doc.ui));
+  check('syncDoctor 带 reloadLog（刷新现场）',
+    Array.isArray(doc.reloadLog) && doc.reloadLog.length > 0, JSON.stringify(doc.reloadLog));
 } catch (err) {
   console.log(`\n测试异常终止: ${err.message}\n`);
   failed++;
