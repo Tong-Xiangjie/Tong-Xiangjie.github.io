@@ -7316,10 +7316,15 @@
     var state = await ensurePermission(root, false);
     var changed = uiState.permission !== state;
     uiState.permission = state;
+    // ⚠ 这里以前是直接往 DOM 里塞一句提示。问题是它在渲染**之后**执行，
+    // 下一次 rerender 会把节点整个换掉，提示就没了 —— 用户打开设置面板
+    // 大多数时候根本看不到"权限被收回"这句话。
+    // 改成写进 uiState 并重新渲染，让它成为真正持久的状态。
     if (changed && state !== 'granted') {
-      // 权限被收回，提示用户重新连接
-      var node = document.querySelector('#' + UI_ID + ' .ls-inline-msg');
-      if (node && !node.textContent) node.textContent = t('needReconnect');
+      setMessage(t('needReconnect'), true);
+    } else if (state === 'granted' && uiState.message === t('needReconnect')) {
+      // 重新连接成功后，把这句提示撤掉
+      setMessage(null, false);
     }
   }
 
@@ -7433,6 +7438,32 @@
     return TAB_UNKNOWN;
   }
 
+  /**
+   * 启动时就先探一次文件夹权限。
+   *
+   * 为什么必须有这一步：Chromium 会在浏览器重启后把已保存句柄的 readwrite
+   * 权限降回 `prompt`。此时**自动落盘会一直失败**（`snapshot()` 用的是
+   * `ensurePermission(root, false)`，只查不申请，于是直接抛错），
+   * 而失败只写进控制台。用户看到的现象就是"选了文件夹、也显示已连接，
+   * 但对话就是写不进去"，而且完全没有提示。
+   *
+   * 用户实测就是这种情况：Chrome 侧最后一次成功写入停在 2026-11-21 22:14，
+   * 之后新建的对话一条都没进文件夹，界面上却什么提示都没有。
+   * 提前探一次，设置面板一打开就能看到「需要重新连接」。
+   */
+  async function probePermissionOnBoot() {
+    if (!supportsFs) return;
+    var root = await getRootHandle();
+    if (!root) return;
+    var state = await ensurePermission(root, false);
+    uiState.permission = state;
+    if (state !== 'granted') {
+      uiState.message = t('needReconnect');
+      uiState.messageError = true;
+      log('文件夹权限当前是 ' + state + '，自动落盘会被跳过，需要用户点「重新连接」');
+    }
+  }
+
   function mountSection(scope) {
     var container = findMountContainer(scope);
 
@@ -7483,6 +7514,8 @@
     observer.observe(document.body, { childList: true, subtree: true });
     // 面板可能已经存在（脚本晚于首屏渲染）
     sync();
+    // 顺手探一次权限，让「需要重新连接」在用户打开面板时就已经在了
+    probePermissionOnBoot();
     log('已开始监听设置弹窗');
   }
 
