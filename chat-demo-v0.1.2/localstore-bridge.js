@@ -742,6 +742,37 @@
     });
   }
 
+  /**
+   * 直接"试一下能不能写"，用来绕开 queryPermission 卡死。
+   *
+   * 为什么需要：`queryPermission()` 只是**问** Chrome 权限状态，它挂了并不代表
+   * 真的不能写。用户实测正是"查询永不返回"，但文件夹本身完全正常。
+   * 与其因为问不到就判定整个同步失效，不如实际做一次最小写入来验证能力 ——
+   * 能写就说明权限是好的，编码器也该继续工作。
+   *
+   * 探针是一个 0 字节的临时文件，写完立刻删掉，不会留下垃圾。
+   */
+  async function probeWritable(handle) {
+    var probeName = '.ls-write-probe';
+    var fh;
+    try {
+      fh = await handle.getFileHandle(probeName, { create: true });
+      if (fh && typeof fh.createWritable === 'function') {
+        var w = await fh.createWritable();
+        await w.write(new Blob([]));
+        await w.close();
+      }
+    } catch (e) {
+      warn('写入探针失败：' + ((e && e.message) || e));
+      return false;
+    }
+    // 清理探针；删不掉不算失败（有的同步盘会锁定文件），下次写入会覆盖它
+    try {
+      if (typeof handle.removeEntry === 'function') await handle.removeEntry(probeName);
+    } catch (e) { /* ignore */ }
+    return true;
+  }
+
   /** 确保目录句柄可写；需要用户手势时返回 'prompt' */
   async function ensurePermission(handle, request) {
     if (!handle) return 'denied';
@@ -756,13 +787,19 @@
       state = await withPermissionTimeout(handle.requestPermission(opts), 'requestPermission');
       return state;
     } catch (e) {
-      // 超时或抛错：统一按"拿不到权限"返回，并由调用方提示用户重新选择文件夹。
-      // 注意这里**不能**返回 'granted' 去赌 —— 赌错会让写入抛错，更难查。
+      // 问不到权限状态。**先别急着判死刑** —— 可能只是查询接口卡住，
+      // 而真实写入能力是好的（用户实测就是这种）。直接试写一次来判定。
       //
-      // 实测的坏状态：Chrome 里那个文件夹句柄的 queryPermission() 永远不返回，
-      // 之后每一次权限检查都会重复卡满一个超时周期，等于整个同步永久失效。
-      // 这种句柄救不回来，只能让用户重新选一次文件夹换一个句柄
-      // —— 所以这里直接标记出来，由启动流程提示用户（见 permissionStuck）。
+      // 注意：探针成功才返回 'granted'；失败一律 'denied'，绝不"赌"权限。
+      // 赌错会让后续写入抛错，反而更难查。
+      try {
+        var ok = await withPermissionTimeout(probeWritable(handle), '写入探针');
+        if (ok) {
+          log('权限查询卡住，但实测写入可用 —— 按已授权继续（句柄本身是好的）');
+          return 'granted';
+        }
+      } catch (e2) { /* 探针也卡住，往下走 */ }
+
       permissionStuck = true;
       return 'denied';
     }
