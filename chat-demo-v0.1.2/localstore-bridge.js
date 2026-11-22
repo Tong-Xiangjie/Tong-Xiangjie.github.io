@@ -810,6 +810,8 @@
    * 所有自动路径都必须先问这个，避免继续往一个坏盘上打请求。
    */
   function permCircuitOpen() {
+    // 全局停机开关优先级最高：一旦打开，任何文件系统调用都不再发起。
+    if (fsGloballyDisabled()) return true;
     // 一旦熔断，本次页面加载内一直有效 —— 不再自动重试。
     // 理由见 permTripped 的注释：自动重试只是把请求流变慢，仍有崩溃风险，
     // 而坏掉的句柄不会因为重试自己变好。
@@ -826,7 +828,80 @@
     permCache = { result: null, at: 0 };
     permFailStreak = 0;
     permTripped = false;
+    fsTriedOnceWithoutSuccess = false;
     if (byUser) log('用户主动重试：已解除文件系统熔断');
+  }
+
+  /**
+   * 用户手势触发的目录操作专用入口 —— **必须在检查权限之前调用**。
+   *
+   * 为什么需要这个包装：熔断打开时 ensurePermission() 会**立刻返回 'denied'**，
+   * 一个文件系统调用都不发（这是为了不再往浏览器进程塞挂起请求）。
+   * 但用户亲手点按钮正是**唯一能重新授权**的时机：File System Access 要求
+   * requestPermission() 处于用户手势中。
+   *
+   * 这里踩过真实的坑：熔断打开后，用户点「更换文件夹」并确实点了「允许读写」，
+   * 拿到的却还是「未获得文件夹读写权限」—— 因为那句拒绝来自熔断的提前返回，
+   * 新句柄压根没被检查过。所以凡是用户手势路径，一律先解除熔断再检查。
+   */
+  function beginUserGestureFs() {
+    invalidatePermissionCache(true);
+  }
+
+  /**
+   * ⛔ 全局停机开关（紧急用）。
+   *
+   * 用户实测：即使熔断生效、调用次数停在 6 不动，页面**仍然崩过**。
+   * 也就是说，"少打请求"未必足够 —— 只要这个句柄上还有任何一个文件系统调用
+   * 悬着，风险就还在。
+   *
+   * 所以提供这个开关：打开后**整个桥接层一个文件系统调用都不再发起**，
+   * 自动保存、监看、启动恢复、权限检查全部停摆，应用退化成"纯浏览器本地存储"，
+   * 与没有这个功能时完全一样。用户可以用它把页面变成绝对安全的状态。
+   *
+   * 设定存在 localStorage，跨刷新保留，直到用户手动关掉。
+   */
+  var LS_FS_DISABLED = 'chat-demo:fs-disabled';
+
+  function fsGloballyDisabled() {
+    try { return lsGet(LS_FS_DISABLED) === 'true'; } catch (e) { return false; }
+  }
+
+  function setFsGloballyDisabled(on) {
+    try {
+      if (on) lsSet(LS_FS_DISABLED, 'true');
+      else localStorage.removeItem(LS_FS_DISABLED);
+    } catch (e) { /* ignore */ }
+    if (on) {
+      // 立刻停手：熔断 + 停监看，一次调用都不再发
+      permTripped = true;
+      fsTriedOnceWithoutSuccess = true;
+      try { stopFolderWatcher(); } catch (e) { /* ignore */ }
+    } else {
+      invalidatePermissionCache(true);
+    }
+    log(on ? '⛔ 已全局停用文件夹同步（不再发起任何文件系统调用）'
+           : '已重新启用文件夹同步');
+    return fsGloballyDisabled();
+  }
+
+  /**
+   * 启动流程里"读文件夹"的步骤，在**还没有任何一次成功记录**时，只允许一次尝试。
+   *
+   * ⚠ 这是为了把"熔断生效之前"那段窗口压到最小。
+   *
+   * 用户实测：熔断生效后调用次数确实停在 6 不动了，但页面**仍然崩过**。
+   * 那 6 次调用全部发生在熔断触发之前 —— 也就是启动阶段连续三步各自试一轮，
+   * 每次都要挂 3 秒（权限查询）+ 2 秒（探针）。这一段窗口里，浏览器进程里
+   * 会叠着若干个永不返回的文件系统请求，而那正是用户查明的崩溃机制。
+   *
+   * 所以策略改为：只要这个会话里还没成功过，就**只试一次**。
+   * 第一次能成功，说明环境正常，后面照常；第一次就挂，立刻熔断，不再有第二第三次。
+   */
+  var fsTriedOnceWithoutSuccess = false;
+
+  function fsProbeBudgetExhausted() {
+    return permCircuitOpen() || fsTriedOnceWithoutSuccess;
   }
 
   /** 确保目录句柄可写；需要用户手势时返回 'prompt' */
@@ -840,6 +915,14 @@
       return permCache.result;
     }
 
+    // 已经试过一次且没成功：不再试。
+    // 用户手势路径（beginUserGestureFs → 解除熔断）会把这个标记一并清掉，
+    // 所以"重新选文件夹 / 重新连接"仍然能真正重试。
+    if (fsTriedOnceWithoutSuccess && !request) {
+      fsCallsAvoided++;
+      return 'denied';
+    }
+
     // 每次检查都重新判定：卡死是"这一次这个句柄"的属性，
     // 换了新句柄（用户重新选文件夹）后就该恢复正常，不能一直留着告警。
     permissionStuck = false;
@@ -847,6 +930,7 @@
     try {
       fsCallCount++;
       var state = await withPermissionTimeout(handle.queryPermission(opts), 'queryPermission');
+      log('权限查询结果：' + state + '（句柄：' + (handle.name || '(无名)') + '）');
       if (state === 'granted') {
         invalidatePermissionCache(false);
         return 'granted';
@@ -879,6 +963,7 @@
       permissionStuck = true;
       permFailStreak++;
       permTripped = true;
+      fsTriedOnceWithoutSuccess = true;
       permCache = { result: 'denied', at: Date.now() };
       // 立刻停掉监看，不用等下一轮计时器 —— 每一轮都是一批挂起的文件系统调用。
       try { stopFolderWatcher(); } catch (e3) { /* ignore */ }
@@ -1607,12 +1692,22 @@
       startIn: 'documents'
     });
 
+    // ⚠ 必须在检查权限**之前**解除熔断。
+    //
+    // 这里踩过一个真实的坑：熔断打开时 ensurePermission 会**立刻返回 'denied'**
+    // 而根本不发起任何调用（这是为了不再往浏览器进程塞挂起请求）。
+    // 原来 invalidatePermissionCache() 写在检查**之后**，于是用户亲手选完文件夹、
+    // 也确实点了「允许读写」，拿到的却还是那句
+    // 「选择文件夹失败：未获得文件夹读写权限」—— 新句柄压根没被检查过。
+    // 顺序必须是：先解除熔断（给新句柄一个干净的机会），再检查。
+    invalidatePermissionCache(true);
+
     var perm = await ensurePermission(handle, true);
     if (perm !== 'granted') {
-      throw new Error('未获得文件夹读写权限');
+      throw new Error('未能获得文件夹读写权限（' + perm + '）'
+        + '：请在弹窗里点「允许」；若没有弹出授权框，'
+        + '请确认浏览器窗口处于焦点状态后重试。');
     }
-    // 用户亲手选了文件夹：作废熔断与冷却，并且允许后续自动重试
-    invalidatePermissionCache(true);
 
     // 句柄要存进 IndexedDB 才能"下次打开还记得这个文件夹"。
     //
@@ -2489,6 +2584,8 @@
     if (!key && !Object.keys(providerKeys).length) throw new Error(t('keyNone'));
     var root = await getRootHandle();
     if (!root) throw new Error('尚未选择本地文件夹');
+    // 用户手势路径：「保存到文件夹」按钮同样要能重新授权
+    beginUserGestureFs();
     var perm = await ensurePermission(root, true);
     if (perm !== 'granted') throw new Error('未获得文件夹读写权限');
 
@@ -2537,6 +2634,7 @@
   async function removeKeyFromFolder() {
     var root = await getRootHandle();
     if (!root) throw new Error('尚未选择本地文件夹');
+    beginUserGestureFs();
     var perm = await ensurePermission(root, true);
     if (perm !== 'granted') throw new Error('未获得文件夹读写权限');
     try {
@@ -2630,6 +2728,8 @@
   async function writeSettingsToFolder() {
     var root = await getRootHandle();
     if (!root) throw new Error(t('needFolder'));
+    // 用户手势路径：先解除熔断，否则会在下面被"立刻拒绝"挡住（见 beginUserGestureFs）
+    beginUserGestureFs();
     var perm = await ensurePermission(root, true);
     if (perm !== 'granted') throw new Error(t('noPermission'));
 
@@ -7118,6 +7218,37 @@
         btns.push(button(t('change'), onPick, { disabled: uiState.busy }));
         btns.push(button(t('disconnect'), onDisconnect, { disabled: uiState.busy }));
       }
+
+      // ⛔ 紧急开关：停用文件夹同步。
+      //
+      // 为什么要有界面按钮而不是只留控制台命令：用户实测即便熔断生效
+      // （调用次数停在 6 不动）页面**仍然崩过** —— 而崩溃是整机级别的
+      // （所有标签一起没），没法要求用户"崩之前赶紧去控制台敲一行"。
+      // 必须给一个点得到的按钮，让他在需要时立刻把页面变成绝对安全的状态。
+      //
+      // 这个开关放在**断开状态也能点**的地方，因为它正是"连不上又一直被拖崩"
+      // 时的逃生口。
+      if (fsGloballyDisabled()) {
+        btns.push(
+          button('⛔ 已停用文件夹同步（点此恢复）', function () {
+            setFsGloballyDisabled(false);
+            setMessage('已恢复文件夹同步，请点「重新连接」重新授权。', false);
+            rerender();
+          }, { title: '当前桥接层不会发起任何文件系统调用' })
+        );
+      } else {
+        btns.push(
+          button('停用文件夹同步（防止浏览器被拖崩）', function () {
+            setFsGloballyDisabled(true);
+            setMessage('已停用文件夹同步：不会再发起任何文件夹读写。'
+              + '需要时再点同一按钮恢复。', false);
+            rerender();
+          }, {
+            title: '打开后桥接层一个文件系统调用都不再发起；' +
+              '用于文件夹读写异常导致浏览器卡死/崩溃时自救'
+          })
+        );
+      }
       lines.push(el('div', { class: 'ls-btns' }, btns));
 
       // 自动同步状态（仅展示，默认恒开，通过 localStorage 可关）
@@ -9344,6 +9475,17 @@
         invalidatePermissionCache(true);
         return { ok: true, note: '已解除熔断，下一次同步会真正尝试' };
       },
+
+      /**
+       * ⛔ 紧急开关：停用 / 恢复文件夹同步。
+       *
+       * `window.__localstore.setFsDisabled(true)` —— 打开后桥接层**一个文件系统
+       * 调用都不再发起**，页面退化成纯本地存储，绝对安全。
+       * `window.__localstore.setFsDisabled(false)` —— 恢复。
+       * 设定跨刷新保留（localStorage），所以崩得受不了时打开它，之后都能正常用。
+       */
+      setFsDisabled: setFsGloballyDisabled,
+      fsDisabled: fsGloballyDisabled,
 
       /**
        * 逐个试每一种文件系统调用，看**具体哪一个**挂住。
