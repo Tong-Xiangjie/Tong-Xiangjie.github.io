@@ -8679,6 +8679,24 @@
        * 用法：copy(JSON.stringify(await window.__localstore.syncDoctor(), null, 2))
        */
       syncDoctor: syncDoctor,
+      /**
+       * 手动解除「处理中…」卡死（逃生舱）。
+       *
+       * withBusy 现在有 2 分钟看门狗，正常情况下用不到这个。
+       * 但万一还有别的路径把 busy 卡住，用户不该只能关标签页 ——
+       * 控制台执行 `window.__localstore.unstick()` 即可放开界面。
+       */
+      unstick: function () {
+        if (busyWatchdog) {
+          clearTimeout(busyWatchdog);
+          busyWatchdog = null;
+        }
+        uiState.busy = false;
+        rerender();
+        return { busy: uiState.busy };
+      },
+      /** 当前是不是处于「处理中」状态（排查用） */
+      isBusy: function () { return uiState.busy; },
       LS_HISTORY_SYNCED_AT: LS_HISTORY_SYNCED_AT,
       loadFromFolder: loadFromFolder,
       readManifest: readManifest,
