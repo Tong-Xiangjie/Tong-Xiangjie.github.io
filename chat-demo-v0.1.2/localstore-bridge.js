@@ -4898,7 +4898,7 @@
    *  ⚠ 改 CSS 时长时这里要跟着改。收起与展开共用同一个值，
    *  这正是「收起 = 展开倒放」的前提。 */
   var SIDER_COLLAPSE_MS = 260;
-  var GHOST_CLASS = 'ls-sider-ghost';
+  // GHOST_CLASS 定义在深链那一段（两个功能的交叉点），这里不再重复声明
   var GHOST_CLONE_CLASS = 'ls-sider-clone';
   /** 收起时记下的侧栏宽度；展开时侧栏还没挂载，量不到，用它来定过渡终点 */
   var lastSiderWidth = 0;
@@ -7290,7 +7290,17 @@
   var HASH_PREFIX = '#c=';
   var LS_TOKEN_MAP = 'chat-demo:deeplink-tokens';
 
+  /**
+   * 侧栏收起时应用用来顶替真侧栏的浮层类名。
+   *
+   * 定义放在这里（而不是 collapseSider 旁边）是因为它是**深链**和
+   * **侧栏收起**两个功能的交叉点：收起后真侧栏会被摘出 DOM，
+   * 只剩这个替身里还有对话列表和 active 标记，深链要靠它继续工作。
+   */
+  var GHOST_CLASS = 'ls-sider-ghost';
+
   var deepLinkTimer = null;
+  var restoreGuardTimer = null;
 
   /** 简单的稳定哈希，用来生成短的 token */
   function hash32(str) {
@@ -7338,13 +7348,41 @@
    * key 用标题（重名时加序号后缀），这样「按创建时间排序的位置」变化
    * 也不会让已分配的 token 漂移。
    */
-  function readSidebarSessions() {
-    // 用 siderEl() 而不是直接 querySelector：侧栏做收起动画时，
-    // 页面上会短暂存在一个「替身浮层」，它内部也有 .sider-ac14ac，
-    // 直接查会读到替身里的旧内容。
-    var sider = siderEl();
-    if (!sider) return [];
+  /**
+   * 读当前侧栏里的对话列表。
+   *
+   * ⚠ 返回 [] 与「侧栏不在页面上」是两件不同的事，调用方必须能分清：
+   *   · []    → 侧栏在，但一条对话都没有（真实的空状态）
+   *   · null  → **侧栏根本不在页面上**（收起态，或还没渲染出来）
+   *
+   * 为什么非要分清：收起侧栏后应用会把真侧栏从 DOM 里摘掉，
+   * 只留一个替身浮层（见 collapseSider）。旧实现这时返回的是 []，
+   * 于是「当前对话」被判成 null，地址栏里的 #c= 被当成"用户切到了新对话"
+   * 而抹掉 —— 用户报的「侧栏收起后深链就会消失，刷新就回到主页」
+   * 就是这么来的。现在返回 null，调用方就知道"没有信息，别乱动"。
+   *
+   * @returns {Array|null}
+   */
+  function readSidebarSessionsOrNull() {
+    // 真侧栏优先。注意不能用 siderEl()：它故意排除替身，而收起后
+    // 替身恰恰是**唯一**还能读到 active 状态的地方。
+    var sider = document.querySelector('.sider-ac14ac');
+    if (!sider) {
+      // 收起动画结束后替身也会被移除，这时真的一点信息都没有了
+      var ghost = document.querySelector('.' + GHOST_CLASS);
+      sider = ghost ? ghost.querySelector('.sider-ac14ac') : null;
+    }
+    if (!sider) return null;
+    return collectSessionsFrom(sider);
+  }
 
+  /** 兼容旧调用：拿不到就是空数组 */
+  function readSidebarSessions() {
+    var r = readSidebarSessionsOrNull();
+    return r || [];
+  }
+
+  function collectSessionsFrom(sider) {
     var items = Array.prototype.slice.call(sider.querySelectorAll('.' + SIDE_ITEM_CLASS));
     var seen = {};
     var out = [];
@@ -7375,12 +7413,26 @@
   }
 
   /** 当前打开的是哪个对话（没有则 null，代表「新对话」） */
-  function activeSession() {
-    var list = readSidebarSessions();
+  /**
+   * 当前打开的是哪个对话。
+   *
+   * @returns {Object|null}   找到了就是那一项
+   * @returns {undefined}     **读不到**（侧栏收起 / 还没渲染）—— 与"null =
+   *                          确实在新对话"必须分开，否则收起侧栏会被误判成
+   *                          "用户切到了新对话"，地址栏的 #c= 就被抹掉了。
+   */
+  function activeSessionOrUnknown() {
+    var list = readSidebarSessionsOrNull();
+    if (!list) return undefined;
     for (var i = 0; i < list.length; i++) {
       if (list[i].active) return list[i];
     }
     return null;
+  }
+
+  /** 兼容旧调用：读不到一律当"新对话"（旧行为） */
+  function activeSession() {
+    return activeSessionOrUnknown() || null;
   }
 
   function currentHashToken() {
@@ -7711,7 +7763,10 @@
     var want = currentHashToken() || bootToken;
     if (!want) return false;
 
-    var list = readSidebarSessions();
+    var list = readSidebarSessionsOrNull();
+    // 侧栏不在页面上（收起态 / 还没渲染）→ 没有可点的项，等一下再说。
+    // 不能当成"对话不存在"：那会让下面的兜底逻辑把 #c= 清掉。
+    if (!list) return false;
     var target = null;
     for (var i = 0; i < list.length; i++) {
       if (list[i].token === want) {
@@ -7755,6 +7810,146 @@
    * 用轮询而不是 MutationObserver —— 侧边栏在流式回复时会频繁变动，
    * 观察者会被高频触发；而这里只需半秒级的跟随，轮询更稳也更省。
    */
+  /**
+   * ★ 深链遇到「侧栏收起」时的处理 ★
+   *
+   * 用户报的第二半问题：侧栏收起后刷新会回到主页。
+   *
+   * 原因：应用把收起状态持久化在 `chat-demo:sider-collapsed`，收起时
+   * **真侧栏根本不在 DOM 里**（只剩一个 .collapsed-ac14ac 的浮动按钮组）。
+   * 而我们恢复对话的唯一手段是**点侧栏那一项**（应用的 activeId 只放在内存里，
+   * 没有任何可写的持久化字段），于是没有可点的项 → 恢复不了 → 停在主页。
+   *
+   * 做法：**点应用自己的「打开边栏」**，让它把真侧栏挂回来，恢复完再点
+   * 应用自己的「收起」按钮还原。整个过程都在启动遮罩（.ls-boot-cover）底下，
+   * 用户看不到"侧栏展开一下又收起"。
+   *
+   * ⚠ 为什么是"点按钮"而不是直接改 localStorage：
+   *   实测改 `chat-demo:sider-collapsed` **不会**让已经挂载的应用重新渲染
+   *   （那个键只在启动时读一次），侧栏根本不出来。而点按钮走的是应用
+   *   自己的状态机，一定会渲染 —— 用户点它也是这样。
+   *
+   * @returns {Promise<boolean>} 是否临时展开过
+   */
+  var LS_SIDER_COLLAPSED = 'chat-demo:sider-collapsed';
+
+  /** 收起态那个浮动按钮组里的「打开边栏」 */
+  function findOpenSiderBtn() {
+    try {
+      var btns = document.querySelectorAll('.collapsed-ac14ac button');
+      for (var i = 0; i < btns.length; i++) {
+        var label = btns[i].getAttribute('aria-label') || '';
+        if (/打开|expand|show|open/i.test(label)) return btns[i];
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  /** 顶部那个「收起」按钮 */
+  function findCollapseSiderBtn() {
+    try {
+      var btns = document.querySelectorAll('.top-ac14ac button[aria-label]');
+      for (var i = 0; i < btns.length; i++) {
+        var label = btns[i].getAttribute('aria-label') || '';
+        if (/收起|collapse|hide/i.test(label)) return btns[i];
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  /**
+   * 临时把侧栏展开，跑完 fn 之后再把用户的收起状态还原。
+   *
+   * @param {Function} fn           展开期间要做的事（返回 Promise）
+   * @param {Function} [takeCollapse] 若提供，**不自己收起**，而是把"收起动作"
+   *        通过 done 回调交出去 —— 调用方需要在写完地址栏之后再收起
+   *        （收起后就读不到当前对话了，顺序反了地址栏会被写空）。
+   * @returns {Promise<boolean>} 是否临时展开过
+   */
+  function withSiderExpanded(fn, takeCollapse) {
+    var wasCollapsed = false;
+    try {
+      wasCollapsed = lsGet(LS_SIDER_COLLAPSED) === 'true';
+    } catch (e) { /* ignore */ }
+    if (!wasCollapsed) return Promise.resolve(fn());
+
+    var openBtn = findOpenSiderBtn();
+    if (!openBtn) {
+      // 没有收起态按钮 → 可能其实不是收起态，交给调用方正常流程
+      return Promise.resolve(fn());
+    }
+
+    log('深链恢复：侧栏是收起态，先点「打开边栏」把列表叫出来（会在遮罩底下还原）');
+    try {
+      openBtn.click();
+    } catch (e) {
+      return Promise.resolve(fn());
+    }
+
+    // 等应用把真侧栏挂回来
+    return waitFor(function () {
+      return !!document.querySelector('.sider-ac14ac');
+    }, 6000, 60).then(function (appeared) {
+      return Promise.resolve()
+        .then(fn)
+        .then(
+          function (r) { return { result: r, appeared: appeared }; },
+          function (e) { return { result: false, appeared: appeared, error: e }; }
+        );
+    }).then(function (out) {
+      if (!out.result) {
+        // 没成功也要把侧栏还原，别留在展开态
+        return doCollapse(out.appeared).then(function () { return false; });
+      }
+      if (takeCollapse) {
+        // 把"收起"这一步交出去，等调用方说完该说的再收
+        return new Promise(function (resolve) {
+          takeCollapse(function () {
+            doCollapse(out.appeared).then(function () { resolve(true); });
+          });
+        });
+      }
+      return doCollapse(out.appeared).then(function () { return true; });
+    });
+
+    /** 真的收起，并等动画走完 */
+    function doCollapse(appeared) {
+      return new Promise(function (resolve) {
+        var finish = function () {
+          // 双保险：按钮点不动时至少把持久化状态改回去
+          try { lsSet(LS_SIDER_COLLAPSED, 'true'); } catch (e) { /* ignore */ }
+          resolve();
+        };
+        try {
+          var s = siderEl();
+          if (appeared && s) {
+            var btn = findCollapseSiderBtn();
+            if (btn) btn.click();
+            else collapseSider(s);
+            // 收起动画 260ms + 兜底 260ms，等它走完再继续
+            setTimeout(finish, SIDER_COLLAPSE_MS + 340);
+            return;
+          }
+        } catch (e) { /* ignore */ }
+        finish();
+      });
+    }
+  }
+
+  /** 轮询等待条件成立（返回是否成功） */
+  function waitFor(test, timeoutMs, intervalMs) {
+    return new Promise(function (resolve) {
+      var deadline = Date.now() + (timeoutMs || 3000);
+      (function tick() {
+        var ok = false;
+        try { ok = !!test(); } catch (e) { ok = false; }
+        if (ok) { resolve(true); return; }
+        if (Date.now() > deadline) { resolve(false); return; }
+        setTimeout(tick, intervalMs || 60);
+      })();
+    });
+  }
+
   function watchDeepLink() {
     if (deepLinkTimer) clearInterval(deepLinkTimer);
     var lastToken = undefined;
@@ -7782,11 +7977,140 @@
       bootToken = token;
       restoring = true;
       stopRestoreWatch();
+      /**
+       * ★ 兜底：restoring 绝不允许卡住 ★
+       *
+       * 这个标志会挡住下面 500ms 的地址栏跟随。只要它停在 true，
+       * 地址栏就永远不再跟随当前对话 —— 用户表现是"切了对话但链接不变"。
+       *
+       * 正常路径由 settle() 清掉；但实测存在"应用自己就按 hash 恢复了、
+       * 我们的恢复动作始终没走到 settle"的情况（探针里看到 restoring
+       * 连着一整段都是 true）。所以这里再加一道定时兜底：无论如何
+       * 8 秒后强制放开，宁可少一次"不要覆盖 #c="的保护，也不能永久卡死。
+       */
+      if (restoreGuardTimer) clearTimeout(restoreGuardTimer);
+      restoreGuardTimer = setTimeout(function () {
+        if (!restoring) return;
+        warn('深链恢复标志超时未清，强制放开地址栏跟随');
+        restoring = false;
+        reveal();
+      }, 8000);
       // 盖住「应用先渲染空对话」那一瞬间
       showBootCover();
       var coverDeadline = setTimeout(hideBootCover, 3000);
 
+      /** 揭掉遮罩（恢复成功或放弃时都要走到） */
+      function reveal() {
+        clearTimeout(coverDeadline);
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            hideBootCover();
+          });
+        });
+      }
+
+      /**
+       * ★ 收尾顺序很重要 ★
+       *
+       * `syncUrlToActiveSession()` 要把地址栏写成"当前对话"，而它只能从
+       * **侧栏 DOM** 反推当前对话。所以必须趁侧栏还开着（收起之前）写完，
+       * 否则收起之后就读不到了，写出来的是空 hash —— 地址栏又被抹掉。
+       *
+       * 所以顺序是：恢复 → settle（写 hash）→ 收起 → 揭遮罩。
+       */
+      function settle() {
+        stopRestoreWatch();
+        bootToken = null;
+        /**
+         * ⚠ `restoring` 必须在这里、**同步**清掉，不能等到收起/揭遮罩之后。
+         *
+         * 它挡着下面那个 500ms 的地址栏跟随（`if (restoring) return`）。
+         * 而"收起侧栏再揭遮罩"是异步的（要等 260ms 动画 + 兜底），
+         * 这期间用户如果已经点开了别的对话 —— 实测就是测试里的下一步 ——
+         * 跟随会被一直挡住，地址栏停在旧对话的 token 上，
+         * 表现出"切了对话但链接没跟着变"。所以写完地址栏立刻放开。
+         */
+        restoring = false;
+        // 先把地址栏写对（此时侧栏还开着）
+        lastToken = undefined;
+        try {
+          syncUrlToActiveSession();
+        } catch (e) {
+          /* ignore */
+        }
+        // 再交还控制权：收起侧栏 / 揭遮罩。
+        //
+        // ⚠ 这里**不能** await 收起完成 —— 收起动作正是由 withSiderExpanded
+        //   交出来的，它又在等 attempt() 的 promise 结束，await 会死锁
+        //   （实测：侧栏永远留在展开态、收起状态也没还原）。
+        //   所以"触发收起"，然后在收起结束后自己揭遮罩。
+        var finish = function () {
+          reveal();
+        };
+        var collapse = pendingCollapse;
+        pendingCollapse = null;
+        if (collapse) {
+          try { collapse(); } catch (e) { /* ignore */ }
+        }
+        // 收起动作内部已经等过动画时长；这里给一个与之匹配的兜底，
+        // 保证遮罩一定会在收起完成之后才揭开。
+        if (collapse) setTimeout(finish, SIDER_COLLAPSE_MS + 420);
+        else finish();
+      }
+
+      /** 需要还原的"收起"动作（收起态恢复时才会有） */
+      var pendingCollapse = null;
+
+      /**
+       * 真正的恢复动作。
+       *
+       * ★ 必须处理"侧栏收起" ★
+       *
+       * 侧栏处于收起态时真侧栏不在 DOM 里，而恢复只能靠点侧栏那一项
+       * （应用的 activeId 只在内存里，没有可写的持久化字段）。
+       * 不临时展开的话，收起态下刷新永远恢复不了 —— 就是用户报的
+       * 「侧栏收起后刷新就回到主页」。详见 withSiderExpanded 的注释。
+       */
       function attempt() {
+        if (restoreInFlight) return false;
+        if (document.querySelector('.sider-ac14ac')) {
+          return tryRestoreDirect();
+        }
+        // 收起态：点开边栏 → 恢复 → 收起（全程在遮罩底下）
+        if (expandTried) return false;
+        expandTried = true;
+        restoreInFlight = true;
+        withSiderExpanded(
+          function () {
+            // 展开后列表可能还要一会儿才渲染出来
+            return waitFor(function () {
+              var ok = false;
+              try { ok = restoreFromHash(); } catch (e) { ok = false; }
+              if (ok) {
+                // 等 active 类真的挪到目标项上，settle 才能写对 hash
+                return waitFor(function () {
+                  var a = activeSessionOrUnknown();
+                  return !!(a && a.token === bootToken);
+                }, 1500, 50).then(function () { return true; });
+              }
+              return false;
+            }, 4000, 80);
+          },
+          // 收起动作交给 settle 在写完 hash 之后再触发
+          function (done) { pendingCollapse = done; }
+        ).then(function (ok) {
+          restoreInFlight = false;
+          if (ok) settle();
+          else expandTried = false; // 交给兜底轮询再试
+        }).catch(function () {
+          restoreInFlight = false;
+          expandTried = false;
+        });
+        return false;
+      }
+
+      /** 侧栏已经在页面上时的直接恢复 */
+      function tryRestoreDirect() {
         var ok = false;
         try {
           ok = restoreFromHash();
@@ -7794,24 +8118,12 @@
           /* ignore */
         }
         if (!ok) return false;
-        stopRestoreWatch();
-        bootToken = null;
-        restoring = false;
-        lastToken = undefined; // 让地址栏跟随重新对齐
-        try {
-          syncUrlToActiveSession();
-        } catch (e) {
-          /* ignore */
-        }
-        // 等一帧，让应用把目标对话画出来，再揭开遮罩
-        requestAnimationFrame(function () {
-          requestAnimationFrame(function () {
-            clearTimeout(coverDeadline);
-            hideBootCover();
-          });
-        });
+        settle();
         return true;
       }
+
+      var expandTried = false;
+      var restoreInFlight = false;
 
       // 侧边栏一渲染出来就立刻恢复，别等固定间隔。
       // 应用在约 230ms 渲染列表、约 430ms 才切到空对话，
@@ -7827,33 +8139,53 @@
         }
       }
 
-      // 兜底轮询：列表早已渲染完（观察器错过时机）时也能收敛
+      // 兜底轮询：列表早已渲染完（观察器错过时机）时也能收敛。
+      // 收起态下要多给一点时间：展开侧栏 + 渲染列表 + 收起动画都在这里面，
+      // 实测走完约 2~3 秒，这里留到 25 秒（正常路径早就 settle 了）。
       var tries = 0;
       boot = setInterval(function () {
         tries++;
         if (attempt()) return;
-        if (tries >= 60) {
+        if (tries >= 250) {
           // 恢复失败（对话可能已被删掉）：放开地址栏跟随并清掉失效的 hash
-          stopRestoreWatch();
-          bootToken = null;
-          restoring = false;
-          try {
-            syncUrlToActiveSession();
-          } catch (e) {
-            /* ignore */
-          }
-          clearTimeout(coverDeadline);
-          hideBootCover();
+          settle();
         }
       }, 100);
     }
+
+    /**
+     * 最近一次**可靠读到**的当前对话 token。
+     *
+     * 为什么要记这一份（用户报的「侧栏收起后深链就消失、刷新回主页」）：
+     *
+     * 收起侧栏时应用会把真侧栏从 DOM 里摘掉。旧实现只想得到"当前对话"，
+     * 读不到就当成 null，于是下面那段跟随逻辑以为用户切到了新对话，
+     * 立刻 setHashToken(null) —— 地址栏里的 #c= 被自己抹掉。
+     * 之后一刷新，没有 #c= 可恢复，自然就回到主页了。
+     *
+     * 而用户明确的预期是：**收起侧栏只是一个界面状态，不该影响深链**。
+     *
+     * 所以拆成两种输入：
+     *   · 拿到了列表（哪怕列表是空的）→ 这是可靠信息，照常跟随；
+     *   · 读不到侧栏              → 什么都别动，沿用上一次已知的 token。
+     * 这样收起侧栏时地址栏保持不变，展开回来又能立刻跟上。
+     */
+    var stickyToken;
 
     // 当前对话一变就更新地址栏
     deepLinkTimer = setInterval(function () {
       try {
         if (restoring) return; // 恢复期间不要覆盖带过来的 #c=
-        var act = activeSession();
+        var act = activeSessionOrUnknown();
+        if (act === undefined) {
+          // 侧栏不在（收起态/未渲染）：没有可靠信息，**不要动地址栏**。
+          // 但如果地址栏现在什么都没有、而我们手上有上次的 token，
+          // 顺手补回去 —— 这正是"收起后刷新会回主页"的另一半修法。
+          if (!currentHashToken() && stickyToken) setHashToken(stickyToken);
+          return;
+        }
         var token = act ? act.token : null;
+        stickyToken = token;
         if (token !== lastToken) {
           lastToken = token;
           setHashToken(token);
@@ -8337,6 +8669,8 @@
       SETTINGS_ALLOW: SETTINGS_ALLOW,
       /** 深链接：读侧边栏 / 按 hash 恢复 / 同步地址栏 */
       readSidebarSessions: readSidebarSessions,
+      /** 读不到侧栏时返回 undefined（而不是 false 的 null），深链据此判断"没有信息" */
+      activeSessionOrUnknown: activeSessionOrUnknown,
       /**
        * 主动探测上传链路的哪一环断了。
        *
