@@ -378,6 +378,25 @@ try {
   check('快照执行成功', !!snap, JSON.stringify(snap));
   check('快照统计到 1 个对话', snap && snap.sessionCount === 1, JSON.stringify(snap));
 
+  // -------------------------------------------------------------------------
+  // 回归：countLocalSessions 必须数的是**应用库**（chat-demo），不是桥接层自己的库
+  //
+  // 这里曾经写错库（用了 chat-demo-localstore，里面没有 sessions 表），
+  // 于是永远返回 -1。而 -1 在 maybeAutoRestoreHistory 里表示「数不出来，
+  // 按不安全处理」，直接导致**换浏览器 / 清空数据后自动恢复永远不执行** ——
+  // 用户看到的就是「换个浏览器记录不互联」。
+  //
+  // 断言要点：有会话时必须数得出正数，绝不能是 -1。
+  // -------------------------------------------------------------------------
+  const countWithSessions = await evaluateStable(
+    `window.__localstore.countLocalSessions()`
+  );
+  check(
+    'countLocalSessions 能数出应用库里的会话（不是 -1）',
+    typeof countWithSessions === 'number' && countWithSessions > 0,
+    String(countWithSessions)
+  );
+
   const files = await evaluateStable('Object.keys(window.__fsBucket).sort()');
   console.log('\n  生成的文件:');
   files.forEach((f) => console.log('    ' + f));

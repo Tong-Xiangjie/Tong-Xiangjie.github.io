@@ -1843,11 +1843,46 @@
     return { skipped: 'nothing' };
   }
 
-  /** 数一数本地库里有几个对话 */
+  /**
+   * 数一数本地库里有几个对话。
+   *
+   * ★ 曾经写错库（真实 bug，直接导致「换个浏览器/清空数据后同步不动」）★
+   *
+   * 原来用的是 openOwnDb() —— 那是桥接层**自己的**库
+   * （chat-demo-localstore，只存文件夹句柄），里面根本没有 sessions 表。
+   * 于是事务必然抛错、走 catch 返回 -1。
+   *
+   * 而 -1 在 maybeAutoRestoreHistory 里的含义是「数不出来，按不安全处理」，
+   * 结果就是**自动恢复永远不执行**：新浏览器里本地库明明是空的，本该把
+   * 文件夹里的对话读回来，却因为这里返回 -1 而跳过。
+   * 用户看到的就是「怎么刷新都不行，网页版和本地文件也不同步」。
+   *
+   * 必须用 openAppDb()（chat-demo）。
+   *
+   * ⚠ 另一个坑：**绝不能由我们把 chat-demo 这个库创建出来。**
+   * 官方应用是用 indexedDB.open('chat-demo', 11) 打开的 —— 版本 11。
+   * 如果我们先无版本号 open 一次，浏览器会建出一个"版本 1、没有任何表"
+   * 的空库；之后应用带着旧版本号 1 走 upgrade，就得从 1 一路升级到 11，
+   * 而应用的升级分支是按它自己预期的 oldVersion 序列写的，很容易漏表。
+   * 所以先用 indexedDB.databases() 探测（探测不会创建），确认库已存在
+   * 再走 openAppDb()；库不存在就直接算 0 条。
+   *
+   * 返回 -1 只保留给"库存在但读不出来"（例如 onblocked）——那是真的不确定，
+   * 仍按不安全处理。
+   */
   async function countLocalSessions() {
     try {
-      var db = await openOwnDb();
-      var n = await new Promise(function (resolve) {
+      // 1) 库到底存不存在？databases() 只列不改，绝不创建。
+      if (typeof indexedDB.databases === 'function') {
+        var dbs = await indexedDB.databases();
+        var has = (dbs || []).some(function (d) { return d && d.name === APP_DB; });
+        if (!has) return 0; // 应用还没建库 → 本地就是空的 → 可以安全自动恢复
+      }
+
+      // 2) 库存在（或浏览器不支持 databases()，只能尝试打开）。
+      var db = await openAppDb();
+      if (!db.objectStoreNames.contains('sessions')) return 0;
+      return await new Promise(function (resolve) {
         var tx = db.transaction('sessions', 'readonly');
         var rq = tx.objectStore('sessions').count();
         rq.onsuccess = function () {
@@ -1857,10 +1892,9 @@
           resolve(-1);
         };
       });
-      db.close();
-      return n;
     } catch (e) {
-      return -1; // 数不出来时按「不安全」处理：不自动恢复
+      // 库打不开（onblocked 等）：按「不安全」处理，不自动恢复
+      return -1;
     }
   }
 
@@ -6317,6 +6351,7 @@
       errRestore: '恢复失败：',
       doneSync: '同步完成：{sessions} 个对话',
       doneRestore: '已恢复 {sessions} 个对话，正在重新加载…',
+      doneRestoreConnect: '已从文件夹恢复对话，正在重新加载…',
       busy: '处理中…',
       needReconnect: '浏览器已收回文件夹权限，点击「重新连接」恢复自动保存',
       reconnect: '重新连接'
@@ -6455,6 +6490,7 @@
       errRestore: 'Restore failed: ',
       doneSync: 'Synced: {sessions} chats',
       doneRestore: 'Restored {sessions} chats, reloading…',
+      doneRestoreConnect: 'Restored chats from the folder, reloading…',
       busy: 'Working…',
       needReconnect:
         'The browser revoked folder access. Click "Reconnect" to resume auto-save.',
@@ -6893,13 +6929,49 @@
 
   // --- 事件处理 ---
 
+  /**
+   * 选择 / 重新连接文件夹之后要做的事。
+   *
+   * ★ 这里曾经漏掉「先尝试读回来」这一步（真实 bug）★
+   *
+   * 用户报：「我另外一个浏览器记录不互联」——换个浏览器连上同一个文件夹，
+   * 却看不到原来的对话。
+   *
+   * 原因就是这个顺序反了：连上之后**直接就 snapshot** 了。而新浏览器的
+   * 本地库是空的，这一次快照等于"把空的写下去" —— 更糟的是它还会触发清理
+   * 逻辑（虽然有几道安全闸门兜着，只删本机写过的文件，但用户完全看不到
+   * 自己文件夹里那些对话被读进来）。
+   *
+   * 正确顺序：**先试着把文件夹里的对话读回来**（仅在本地为空时才会真的做，
+   * 见 maybeAutoRestoreHistory 的两个前置条件），成功就直接刷新页面；
+   * 本地本来就有对话（amount > 0）时它自己会跳过，这时再快照也不迟。
+   */
   function onPick() {
     withBusy(async function () {
       try {
         var handle = await pickFolder();
         uiState.permission = 'granted';
-        // 连接后立即做一次对账，让用户马上看到文件夹里有东西
+
+        // 1) 换浏览器 / 清空数据后第一次连接：先把存档读回来
         var existing = await readAllSessions();
+        if (!existing.length) {
+          var restored = false;
+          try {
+            restored = await autoRestoreAfterConnect();
+          } catch (e) {
+            warn('连接后自动恢复失败：' + ((e && e.message) || e));
+          }
+          if (restored) {
+            setMessage(t('doneRestoreConnect'), false);
+            // 应用只在启动时读一次 IndexedDB，必须刷新才会看到导入的对话
+            setTimeout(function () {
+              requestReload('连接文件夹后自动恢复了对话');
+            }, 800);
+            return;
+          }
+        }
+
+        // 2) 本地有内容（或文件夹里没有可恢复的存档）：正常对账
         if (existing.length) {
           var r = await snapshot('first-connect');
           setMessage(
@@ -8395,6 +8467,138 @@
       }
     }
 
+    /**
+     * ★ 一键排查「同步不工作」 ★
+     *
+     * 为什么需要它：同步链路（文件夹授权 → 写入 → 反向读取）在真实浏览器里
+     * 依赖 File System Access API，必须在用户真实环境里才能验证 —— 自动化测试
+     * 只能用 mock，测不出「句柄还在不在」「权限还授不授权」这类真实状态。
+     *
+     * 用户报的问题：「怎么刷新都不行，甚至同一个浏览器分别用 GitHub 网页和
+     * 本地文件都不能同步」。这一坨把每一步的真实状态摊开，一次就能定位断在哪。
+     *
+     * 用法（F12 控制台）：
+     *   copy(JSON.stringify(await window.__localstore.syncDoctor(), null, 2))
+     */
+    async function syncDoctor() {
+      var out = {
+        at: new Date().toISOString(),
+        url: location.href,
+        origin: location.origin,
+        // 「网页版」与「本地文件」是两个独立 origin，各有各的 localStorage /
+        // IndexedDB —— 文件夹是它们之间唯一的桥。先把前提摊开。
+        originNote: location.protocol === 'file:'
+          ? '当前是本地文件打开（file://），与网页版是两套独立存储'
+          : '当前是网页版（' + location.host + '），与 file:// 是两套独立存储',
+        supportsFs: supportsFs,
+        switches: {
+          autosync: lsGet(LS_AUTOSYNC),
+          watch: lsGet(LS_WATCH),
+          folderName: lsGet(LS_FOLDER),
+          historySyncedAt: lsGet(LS_HISTORY_SYNCED_AT)
+        },
+        sync: {
+          running: syncState.running,
+          lastSync: syncState.lastSync,
+          lastError: syncState.lastError,
+          lastStats: syncState.lastStats
+        },
+        watch: JSON.parse(JSON.stringify(watchState || {}))
+      };
+
+      // --- 1. 文件夹句柄还在不在、权限还给不给 ---
+      var root = null;
+      try {
+        root = await getRootHandle();
+        out.handle = root
+          ? { ok: true, name: root.name || '(无名)' }
+          : { ok: false, why: '取不到句柄 —— 本浏览器从没选过文件夹，或浏览器数据被清过' };
+      } catch (e) {
+        out.handle = { ok: false, why: '取句柄抛错: ' + ((e && e.message) || e) };
+      }
+
+      if (root) {
+        try {
+          // ensurePermission(request=false)：只查不申请权限。
+          // （浏览器要求用户手势才肯授权，这里申请也没用，如实报出来就行。）
+          var perm = await ensurePermission(root, false);
+          out.permission = perm;
+          if (perm !== 'granted') {
+            out.permissionNote = '权限不是 granted。浏览器要求用户手势才能重新授权，'
+              + '光刷新页面不会自动恢复 —— 请点设置里的「重新连接」。';
+          }
+        } catch (e) {
+          out.permission = 'error: ' + ((e && e.message) || e);
+        }
+      }
+
+      // --- 2. 本地库 vs 文件夹，两边各有多少对话 ---
+      try {
+        out.localSessions = await countLocalSessions();
+      } catch (e) {
+        out.localSessions = 'error: ' + ((e && e.message) || e);
+      }
+
+      if (root) {
+        try {
+          var convDir = await subdir(root, '对话', false);
+          var diskFiles = [];
+          for await (var entry of convDir.values()) {
+            if (entry.kind === 'file' && /\.json$/i.test(entry.name)) {
+              diskFiles.push(entry.name);
+            }
+          }
+          out.folderJsonCount = diskFiles.length;
+          out.folderJsonSample = diskFiles.slice(0, 8);
+          out.folderHasConvDir = true;
+        } catch (e) {
+          out.folderHasConvDir = false;
+          out.folderReadError = '读 对话/ 目录失败: ' + ((e && e.name) || e)
+            + ' —— 目录不存在通常说明还没成功写入过';
+        }
+
+        try {
+          var idx = await readSessionIndex();
+          out.sessionIndex = idx
+            ? { ok: true, count: (idx.sessions || []).length, syncedAt: idx.syncedAt }
+            : { ok: false, why: '数据/sessions.json 读不到（还没写过，或权限不足）' };
+        } catch (e) {
+          out.sessionIndex = { ok: false, why: String((e && e.message) || e) };
+        }
+      }
+
+      // --- 3. 反向读取：文件夹里的会话能不能真的解析出来 ---
+      try {
+        var loaded = await loadFromFolder();
+        out.loadFromFolder = {
+          ok: true,
+          sessions: loaded && loaded.sessions ? loaded.sessions.length : 0,
+          files: loaded && loaded.files ? loaded.files.length : 0
+        };
+      } catch (e) {
+        out.loadFromFolder = { ok: false, why: String((e && e.message) || e) };
+      }
+
+      // --- 4. 结论：一句话说清断在哪 ---
+      if (!supportsFs) {
+        out.verdict = '本浏览器不支持文件夹写入（需要 Chrome/Edge 等 Chromium 系）。';
+      } else if (!root) {
+        out.verdict = '断在「没有文件夹句柄」：请到设置里重新选一次文件夹。';
+      } else if (out.permission && out.permission !== 'granted') {
+        out.verdict = '断在「权限」：句柄还在但权限丢了，点设置里的「重新连接」。';
+      } else if (out.folderJsonCount === 0) {
+        out.verdict = '断在「写入」：文件夹里一个对话文件都没有，同步从没成功过。看 sync.lastError。';
+      } else if (out.localSessions === 0) {
+        out.verdict = '断在「读取」：文件夹里有 ' + out.folderJsonCount
+          + ' 个对话，但本地库是空的 —— 应该反向导入却没有。看 watch.lastError。';
+      } else {
+        out.verdict = '两端都有数据（本地 ' + out.localSessions + ' / 文件夹 '
+          + out.folderJsonCount + '）。若仍不同步，看 watch.lastError，'
+          + '以及 sessionIndex.count 是否对得上。';
+      }
+      return out;
+    }
+
     // 暴露一个调试/自动化接口，也方便日后写测试
     window.__localstore = {
       version: BRIDGE_VERSION,
@@ -8421,6 +8625,11 @@
         ready: watchReady
       },
       countLocalSessions: countLocalSessions,
+      /**
+       * 一键排查同步问题（在真实浏览器里跑才有意义）。
+       * 用法：copy(JSON.stringify(await window.__localstore.syncDoctor(), null, 2))
+       */
+      syncDoctor: syncDoctor,
       LS_HISTORY_SYNCED_AT: LS_HISTORY_SYNCED_AT,
       loadFromFolder: loadFromFolder,
       readManifest: readManifest,
