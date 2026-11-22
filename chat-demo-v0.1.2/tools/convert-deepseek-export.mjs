@@ -28,6 +28,11 @@
  *   --no-attachments   不内嵌附件，只导对话
  *   --index=N          从索引的第 N 条开始（配合 --limit 分批）
  *   --max-mb=N         单个输出文件的目标上限（默认 120 MB），到了就自动切下一批
+ *   --max-sessions=N   每包最多几个会话（0 = 不限），到了就切下一批
+ *
+ * 两个上限同时生效，谁先到就切。**会话数是更重要的那个**：实测同样的数据里
+ * 1618 个会话 / 42 MB 会让页面渲染空白，而 135 个会话 / 70 MB 正常 ——
+ * 说明压住渲染的是会话条数，不是体积。所以小批量导时用 --max-sessions 控制。
  *
  * 为什么要按体积切、而不是按会话个数：
  *   附件分布极不均匀 —— 中位数会话只有 18 KB，最大 1.9 MB，但附件全挤在
@@ -66,6 +71,17 @@ const optMaxMb = (() => {
 })();
 const withAttachments = !flags.includes('--no-attachments');
 const MAX_BYTES = Math.max(1, optMaxMb) * 1024 * 1024;
+/**
+ * 每个包最多几个会话（0 = 不限制）。
+ *
+ * 为什么要加这个：实测在无头浏览器里，**会话数**比文件大小更能预测"页面渲染空白"。
+ * 1618 个会话 / 42 MB 会空白，而 135 个会话 / 70 MB 正常。
+ * 所以为了安全，这里按会话数切小包（默认配合 --max-mb 一起当上限，谁先到就切）。
+ */
+const optMaxSessions = (() => {
+  const f = flags.find((x) => x.startsWith('--max-sessions='));
+  return f ? parseInt(f.split('=')[1], 10) : 0;
+})();
 
 // ---------------------------------------------------------------------------
 // 官方导出里，哪些片段类型算"正文"
@@ -571,7 +587,9 @@ for (const meta of slice) {
 
   // 批次满了就切。判断放在会话**之后**，保证一个会话绝不跨批，
   // 否则它的附件引用会指向另一个文件里的附件。
+  // 两个上限谁先到就切：字节数（防内存）或会话数（防渲染空白）。
   if (currentEstimate() >= MAX_BYTES) flushBatch();
+  else if (optMaxSessions > 0 && curSessions.length >= optMaxSessions) flushBatch();
 }
 flushBatch();
 process.stdout.write('\n');
