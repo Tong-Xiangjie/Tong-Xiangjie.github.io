@@ -166,17 +166,24 @@ function shareScopeKeepSet() {
         try { if (typeof coinCategoryTree !== 'undefined' && coinCategoryTree) trees.push(coinCategoryTree); } catch (e) { }
         if (!trees.length) return null;                 // 配置树没就绪 ⇒ 不裁（安全侧）
         const set = new Set();
-        const walk = (node) => {
+        // ★★ 命中本节点之后，**全部后代**的 dataFile 都要进白名单：递归时把"已经在范围内"
+        //   这个事实带下去（inScope）。原来子节点进来又把 hit 重算成"id 是否等于目标" ⇒ false，
+        //   后代的 dataFile 一个都收不进来 —— 与上面那句"它自己 + 全部后代"的注释正好相反。
+        //   实测（用户报告 + 判红用例）：范围 notes/republic 时白名单只有 1 个文件，
+        //   republic 的 15 个子类数据文件全被裁掉 ⇒ 收件人看到空态「啥都木有」；
+        //   而 notes/rmb 那一次因为配置树还没就绪退化成"不裁"、75 个全下，看着"没问题"
+        //   —— 这就是用户说的"有时会触发"：同一个链接、不同时序，两种结果。
+        const walk = (node, inScope) => {
             if (!node) return false;
-            let hit = (String(node.id || '').toLowerCase() === catId);
+            let hit = inScope || (String(node.id || '').toLowerCase() === catId);
             if (hit && node.dataFile) set.add(shareFileNameOf(node.dataFile));
             if (node.children) {
-                for (const c of node.children) { if (walk(c)) hit = true; }
+                for (const c of node.children) { if (walk(c, hit)) hit = true; }
             }
             return hit;
         };
         let found = false;
-        for (const t of trees) { for (const n of t) { if (walk(n)) found = true; } }
+        for (const t of trees) { for (const n of t) { if (walk(n, false)) found = true; } }
         return (found && set.size) ? set : null;        // 找不到那个分类 ⇒ 不裁（安全侧）
     } catch (e) { return null; }
 }
