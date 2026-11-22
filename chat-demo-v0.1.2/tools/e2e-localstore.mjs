@@ -1069,6 +1069,60 @@ try {
     JSON.stringify(blockedLog.last)
   );
 
+  // -------------------------------------------------------------------------
+  // ★★ 回归：必须挡住"每 9 秒刷一次"的无限刷新循环 ★★
+  //
+  // 原实现只有一个**滑动窗口**（8 秒内只允许一次），它只限速不限次：
+  // 每次启动周期超过 8 秒就变成无限循环，页面永远在加载、面板永远停在
+  // 「处理中… / 同步中…」。现在必须做到"每次页面加载只允许一次刷新"。
+  // -------------------------------------------------------------------------
+  const loopGuard = JSON.parse(await evaluateStable(`
+    (async () => {
+      const L = window.__localstore;
+      sessionStorage.removeItem('chat-demo:auto-reload-at');
+      sessionStorage.removeItem('chat-demo:auto-reload-count');
+      const seq = [];
+      // 连续请求 6 次，keepQuota=true 让配额真的累积：
+      // 旧实现只靠 8 秒滑动窗口，会放行多次；新实现必须只放行第 1 次。
+      for (let i = 0; i < 6; i++) {
+        seq.push(L.__requestReloadForTest('循环测试 ' + i, true));
+      }
+      const afterAll = sessionStorage.getItem('chat-demo:auto-reload-count');
+      sessionStorage.removeItem('chat-demo:auto-reload-at');
+      sessionStorage.removeItem('chat-demo:auto-reload-count');
+      return JSON.stringify({ seq: seq, count: afterAll });
+    })()
+  `));
+  console.log('    放行序列: ' + JSON.stringify(loopGuard.seq));
+  check(
+    '★★ 每次页面加载只允许一次自动刷新（挡住无限刷新循环）',
+    loopGuard.seq[0] === true && loopGuard.seq.slice(1).every((x) => x === false),
+    JSON.stringify(loopGuard.seq)
+  );
+
+  // 跨"8 秒滑动窗口"也必须照样拦住：模拟"刷完一次、过了 9 秒又来一次"
+  const loopGuard2 = JSON.parse(await evaluateStable(`
+    (async () => {
+      const L = window.__localstore;
+      sessionStorage.removeItem('chat-demo:auto-reload-at');
+      sessionStorage.removeItem('chat-demo:auto-reload-count');
+      // 第一次请求并**保留配额**（模拟真的刷了一次），
+      // 然后伪造"上次刷新发生在 9 秒前"——滑动窗口已经过期，
+      // 旧实现会在这里放行，从而形成"每 9 秒刷一次"的无限循环。
+      const first = L.__requestReloadForTest('第一次', true);
+      sessionStorage.setItem('chat-demo:auto-reload-at', String(Date.now() - 9000));
+      const second = L.__requestReloadForTest('过了 9 秒又来一次', true);
+      sessionStorage.removeItem('chat-demo:auto-reload-at');
+      sessionStorage.removeItem('chat-demo:auto-reload-count');
+      return JSON.stringify({ first: first, second: second });
+    })()
+  `));
+  check(
+    '★ 滑动窗口过期后也不放行（这正是原来无限循环的成因）',
+    loopGuard2.first === true && loopGuard2.second === false,
+    JSON.stringify(loopGuard2)
+  );
+
   // 3) syncDoctor 必须把 UI/刷新现场一起报出来（用户只跑一条命令就够）
   const doc = JSON.parse(await evaluateStable(
     `(async () => JSON.stringify(await window.__localstore.syncDoctor()))()`
@@ -1077,6 +1131,163 @@ try {
     doc.ui && typeof doc.ui.busy === 'boolean', JSON.stringify(doc.ui));
   check('syncDoctor 带 reloadLog（刷新现场）',
     Array.isArray(doc.reloadLog) && doc.reloadLog.length > 0, JSON.stringify(doc.reloadLog));
+
+  // -------------------------------------------------------------------------
+  // ★ 端到端：用户点「选择文件夹…」时真正跑的那条业务逻辑 ★
+  //
+  // 前面几节是分开验证各个零件（countLocalSessions / autoRestoreAfterConnect）。
+  // 这一节直接把 pickAndRestoreFolder() 整条跑一遍 —— 顺序才是最容易出错的地方
+  // （先导入还是先对账、什么时候刷新、刷新被拦下会不会卡住）。
+  //
+  // 做法：替换 window.showDirectoryPicker 让它直接返回那个已有存档的文件夹，
+  // 不需要真的弹系统选择框。
+  // -------------------------------------------------------------------------
+  console.log('\n[选择文件夹] 点按钮后应自动导入并保持界面可用\n');
+
+  const pickPath = JSON.parse(await evaluateStable(`
+    (async () => {
+      const L = window.__localstore;
+
+      // ⚠ 不能依赖前面注入的 window.__fakeRoot / __fsBucket：
+      // 导入成功后排队的刷新会**真的把页面 reload 掉**，那两个内存对象
+      // 就随页面一起没了（模拟目录句柄只存在于 JS 内存里）。
+      // 所以这一段自带一整套"文件夹 + 存档"，不依赖任何先前状态。
+      const bucket = {};
+      const makeDir = (prefix) => ({
+        kind: 'directory',
+        name: prefix === '' ? '选择测试存档' : prefix.split('/').filter(Boolean).pop(),
+        async getDirectoryHandle(child, opts) {
+          const key = prefix + child + '/';
+          if (bucket[key] === undefined) {
+            if (!opts || !opts.create) {
+              const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
+            }
+            bucket[key] = true;
+          }
+          return makeDir(prefix + child + '/');
+        },
+        async getFileHandle(fname, opts) {
+          const key = prefix + fname;
+          if (bucket[key] === undefined && !(opts && opts.create)) {
+            const e = new Error('NotFoundError'); e.name = 'NotFoundError'; throw e;
+          }
+          return { kind: 'file', name: fname,
+            async createWritable() {
+              let buf = '';
+              return { write: async (d) => { buf += typeof d === 'string' ? d : '[blob]'; },
+                       close: async () => { bucket[key] = buf; } };
+            },
+            async getFile() { return new File([bucket[key] || ''], fname); } };
+        },
+        async removeEntry(f) { delete bucket[prefix + f]; },
+        async *values() {
+          for (const k of Object.keys(bucket)) {
+            if (!k.startsWith(prefix)) continue;
+            const rest = k.slice(prefix.length);
+            if (!rest || rest.includes('/')) continue;
+            if (bucket[k] === true) yield { kind: 'directory', name: rest };
+            else yield { kind: 'file', name: rest };
+          }
+        },
+        async queryPermission() { return 'granted'; },
+        async requestPermission() { return 'granted'; }
+      });
+      const root = makeDir('');
+
+      // 造一份真实结构的存档文件（格式与 bridge 自己写出来的一致）
+      const now = Date.now();
+      const title = '选择文件夹导入验证';
+      const session = {
+        schema: 'chat-demo-mirror/session@1',
+        id: 'sess-pick-1', title: title,
+        createdAt: now, updatedAt: now, rootMessageId: 'k1',
+        conversation: [], messages: [
+          { id: 'k1', role: 'user', content: '选文件夹后能看到我吗', files: [],
+            createdAt: now, parentId: null, selectedChildId: 'k2' },
+          { id: 'k2', role: 'assistant', model: 'deepseek-flash',
+            serverModel: 'DeepSeek-V4.1-Flash', createdAt: now,
+            parentId: 'k1', selectedChildId: null, status: 'done',
+            blocks: [{ type: 'text', text: '能看到', citations: [] }] }
+        ]
+      };
+      const convDir = await root.getDirectoryHandle('对话', { create: true });
+      const fh = await convDir.getFileHandle('pick-test.json', { create: true });
+      const w = await fh.createWritable();
+      await w.write(JSON.stringify(session));
+      await w.close();
+
+      // 清空本地库 + 清标记 → 模拟新浏览器
+      const open = () => new Promise((res, rej) => {
+        const r = indexedDB.open('chat-demo', 11);
+        r.onupgradeneeded = () => {
+          const db = r.result;
+          for (const s of ['sessions','files']) {
+            if (!db.objectStoreNames.contains(s)) db.createObjectStore(s, { keyPath: 'id' });
+          }
+          if (!db.objectStoreNames.contains('sessionSummaries')) {
+            const st = db.createObjectStore('sessionSummaries', { keyPath: 'id' });
+            st.createIndex('fileIds', 'fileIds', { multiEntry: true });
+          }
+        };
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      });
+      const db = await open();
+      for (const store of ['sessions','sessionSummaries','files']) {
+        if (!db.objectStoreNames.contains(store)) continue;
+        await new Promise((res, rej) => {
+          const tx = db.transaction([store], 'readwrite');
+          tx.objectStore(store).clear();
+          tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+        });
+      }
+      localStorage.removeItem('chat-demo:history-synced-at');
+      // 清掉刷新闸门，让排队的刷新这次真的能成功
+      sessionStorage.removeItem('chat-demo:auto-reload-at');
+
+      // 关键：让 showDirectoryPicker 直接返回这个文件夹
+      const orig = window.showDirectoryPicker;
+      window.showDirectoryPicker = async () => root;
+
+      // ★ 故意把刷新闸门关上，强制走"刷新被拦下"这条路。
+      //
+      // 为什么这么测：用户在真实环境里踩到的正是这条 —— 刷新被 8 秒闸门
+      // 拦下、页面不跳转，而 busy 没放开，面板永久停在「处理中…」。
+      // 让刷新真的发生反而测不到它（页面一跳，断言窗口就没了）。
+      // 排在前面的那几条测试已经验证过"刷新会被正常发出"。
+      sessionStorage.setItem('chat-demo:auto-reload-count', '1');
+
+      let res = null, err = null;
+      try { res = await L.__pickAndRestoreFolderForTest(); }
+      catch (e) { err = (e && e.message) || String(e); }
+      window.showDirectoryPicker = orig;
+
+      const after = await L.readAllSessions();
+      // 等过排队刷新的 800ms 延迟 + 余量
+      await new Promise(r => setTimeout(r, 1500));
+      sessionStorage.removeItem('chat-demo:auto-reload-count');
+      sessionStorage.removeItem('chat-demo:auto-reload-at');
+
+      return JSON.stringify({
+        err: err, res: res,
+        localAfter: after.length,
+        titles: after.map(s => s.title),
+        busyAfter: L.isBusy(),
+        message: (document.querySelector('.ls-msg') || {}).textContent || null,
+        reloadLog: L.reloadLog().slice(-3).map(x => ({ reason: x.reason, blocked: x.blocked }))
+      });
+    })()
+  `));
+  console.log('    ' + JSON.stringify(pickPath));
+  check('点「选择文件夹」后没有抛错', pickPath.err === null, String(pickPath.err));
+  check('点完之后对话真的进了本地库',
+    pickPath.localAfter > 0, JSON.stringify(pickPath.titles));
+  check('pickAndRestoreFolder 报告导入了对话',
+    pickPath.res && pickPath.res.imported > 0, JSON.stringify(pickPath.res));
+  check('★ 界面没有卡在「处理中…」（busy 已放开）',
+    pickPath.busyAfter === false, JSON.stringify({ busy: pickPath.busyAfter, msg: pickPath.message }));
+  check('刷新被拦下时给出了手动刷新的提示（不是静默卡住）',
+    typeof pickPath.message === 'string' && pickPath.message.includes('Ctrl+Shift+R'),
+    JSON.stringify(pickPath.message));
 } catch (err) {
   console.log(`\n测试异常终止: ${err.message}\n`);
   failed++;

@@ -1173,7 +1173,18 @@
       throw new Error('未获得文件夹读写权限');
     }
 
-    await ownPut('root', handle);
+    // 句柄要存进 IndexedDB 才能"下次打开还记得这个文件夹"。
+    //
+    // ⚠ 这一步失败**不能**让整个连接流程中断：
+    // 句柄存不下来只意味着下次要重新选文件夹，而当前这次连接、导入、
+    // 对账全都还可以正常做。真实的 FileSystemDirectoryHandle 是可结构化
+    // 克隆的，正常不会失败；但存储配额不足、隐私模式等情况下会抛错，
+    // 那时用户看到的是"选完文件夹什么都没发生"，比"下次要重选"糟糕得多。
+    try {
+      await ownPut('root', handle);
+    } catch (e) {
+      warn('文件夹句柄无法持久化（下次打开需要重新选择）：' + ((e && e.message) || e));
+    }
     dirCache = handle;
     lsSet(LS_FOLDER, handle.name || '1');
     emitSync();
@@ -6984,60 +6995,74 @@
    * 见 maybeAutoRestoreHistory 的两个前置条件），成功就直接刷新页面；
    * 本地本来就有对话（amount > 0）时它自己会跳过，这时再快照也不迟。
    */
+  /**
+   * 「选择 / 重新连接文件夹」之后真正要做的事。
+   *
+   * 从点击处理函数里拆出来（只做业务、不碰 busy 状态），有两个原因：
+   *   1. 这个顺序是本功能最容易出错的地方（"先导入还是先对账"、
+   *      "什么时候才能刷新"），必须能被自动化测试直接驱动；
+   *   2. 「何时放开 busy」属于界面关注点，混在业务逻辑里最容易漏 ——
+   *      事实上有一次漏掉就直接让面板永久卡在「处理中…」。
+   */
+  async function pickAndRestoreFolder() {
+    var handle = await pickFolder();
+    uiState.permission = 'granted';
+
+    // 1) 换浏览器 / 清空数据后第一次连接：先把存档读回来。
+    //    把进度报出来，否则大存档导入时界面只有「处理中…」，
+    //    看起来就像卡死了。
+    var existing = await readAllSessions();
+    if (!existing.length) {
+      var n = 0;
+      try {
+        n = await autoRestoreAfterConnect(function (done, total) {
+          setMessage('正在从文件夹读回对话… ' + done + '/' + total, false);
+        });
+      } catch (e) {
+        warn('连接后自动恢复失败：' + ((e && e.message) || e));
+      }
+      if (n > 0) {
+        setMessage(t('doneRestore', { sessions: n }), false);
+        // 应用只在启动时读一次 IndexedDB，必须刷新才会看到导入的对话。
+        //
+        // ⚠ 排队刷新之前必须先把 busy 放掉。
+        // canAutoReload() 有 8 秒闸门（防止页面闪个不停），如果这次刷新
+        // 被闸门拦下，页面**不会**跳转 —— 而 busy 还是 true，
+        // 面板就永远停在「处理中…」，所有按钮禁用。
+        // 这正是用户反馈的"卡在 ChatHistory · 处理中…"。
+        uiState.busy = false;
+        rerender();
+        setTimeout(function () {
+          if (requestReload('连接文件夹后自动恢复了 ' + n + ' 个对话')) return;
+          // 刷新被闸门拦下：告诉用户手动刷一下，界面保持可用
+          setMessage(
+            '已从文件夹读回 ' + n + ' 个对话。请手动刷新页面（Ctrl+Shift+R）查看。',
+            false
+          );
+        }, 800);
+        return { imported: n, reloadQueued: true };
+      }
+      // n === 0：文件夹里没有可恢复的对话，别刷新（旧写法会在这里
+      // 误判成"恢复成功"而反复刷新，界面一直卡在处理中）
+    }
+
+    // 2) 本地有内容（或文件夹里没有可恢复的存档）：正常对账
+    if (existing.length) {
+      var r = await snapshot('first-connect');
+      setMessage(
+        t('doneSync', { sessions: r ? r.sessionCount : existing.length }),
+        false
+      );
+      return { imported: 0, synced: r ? r.sessionCount : existing.length };
+    }
+    setMessage(t('connected') + '：' + (handle.name || ''), false);
+    return { imported: 0, connected: true };
+  }
+
   function onPick() {
     withBusy(async function () {
       try {
-        var handle = await pickFolder();
-        uiState.permission = 'granted';
-
-        // 1) 换浏览器 / 清空数据后第一次连接：先把存档读回来。
-        //    把进度报出来，否则大存档导入时界面只有「处理中…」，
-        //    看起来就像卡死了。
-        var existing = await readAllSessions();
-        if (!existing.length) {
-          var n = 0;
-          try {
-            n = await autoRestoreAfterConnect(function (done, total) {
-              setMessage('正在从文件夹读回对话… ' + done + '/' + total, false);
-            });
-          } catch (e) {
-            warn('连接后自动恢复失败：' + ((e && e.message) || e));
-          }
-          if (n > 0) {
-            setMessage(t('doneRestore', { sessions: n }), false);
-            // 应用只在启动时读一次 IndexedDB，必须刷新才会看到导入的对话。
-            //
-            // ⚠ 排队刷新之前必须先把 busy 放掉。
-            // canAutoReload() 有 8 秒闸门（防止页面闪个不停），如果这次刷新
-            // 被闸门拦下，页面**不会**跳转 —— 而 busy 还是 true，
-            // 面板就永远停在「处理中…」，所有按钮禁用。
-            // 这正是用户反馈的"卡在 ChatHistory · 处理中…"。
-            uiState.busy = false;
-            rerender();
-            setTimeout(function () {
-              if (requestReload('连接文件夹后自动恢复了 ' + n + ' 个对话')) return;
-              // 刷新被闸门拦下：告诉用户手动刷一下，界面保持可用
-              setMessage(
-                '已从文件夹读回 ' + n + ' 个对话。请手动刷新页面（Ctrl+Shift+R）查看。',
-                false
-              );
-            }, 800);
-            return;
-          }
-          // n === 0：文件夹里没有可恢复的对话，别刷新（旧写法会在这里
-          // 误判成"恢复成功"而反复刷新，界面一直卡在处理中）
-        }
-
-        // 2) 本地有内容（或文件夹里没有可恢复的存档）：正常对账
-        if (existing.length) {
-          var r = await snapshot('first-connect');
-          setMessage(
-            t('doneSync', { sessions: r ? r.sessionCount : existing.length }),
-            false
-          );
-        } else {
-          setMessage(t('connected') + '：' + (handle.name || ''), false);
-        }
+        await pickAndRestoreFolder();
       } catch (e) {
         setMessage(t('errPick') + ((e && e.message) || e), true);
       }
@@ -8351,17 +8376,35 @@
    * 自动恢复对话）。这些刷新本应各只发生一次，但一旦某个判断写错就会变成
    * 死循环 —— 用户看到的就是「页面不停闪动，而且回到新对话」。
    *
-   * 所以这里加一道闸门：短时间内只允许一次自动刷新。
-   * 两次以上直接放弃刷新，改为记录日志，页面停在当前状态（总比闪个不停好）。
+   * ⚠ 这里原来只有一个**滑动窗口**（8 秒内只允许一次），那是不够的：
+   * 窗口只限制"多快"，不限制"多少次"。只要每次启动周期（boot 加载 + 判断）
+   * 超过 8 秒，就变成每 9 秒刷一次的**无限循环** —— 页面永远在加载，
+   * 设置面板永远停在「处理中… / 同步中…」，用户以为卡死了。
+   *
+   * 现在加一道**每次页面加载只允许一次**的绝对上限：
+   *   · 同一个页面加载里已经请求过刷新 → 再请求一律拒绝；
+   *   · 靠 sessionStorage 计数（刷新后仍在），所以"刷完再判再刷"必定被拦；
+   *   · 判断逻辑写错时，最坏结果是"少刷一次、留在当前状态"，
+   *     而不是"永远刷不完"。宁可少刷，不可死循环。
    */
   var RELOAD_GUARD_KEY = 'chat-demo:auto-reload-at';
   var RELOAD_GUARD_MS = 8000;
+  var RELOAD_COUNT_KEY = 'chat-demo:auto-reload-count';
 
+  /** 是否允许再自动刷新一次（并把配额记下来） */
   function canAutoReload() {
     try {
+      // 绝对上限：本次页面加载已经刷过了，就不再刷
+      // （sessionStorage 会跨刷新保留，正是我们要的"每次加载一次"）
+      var count = Number(sessionStorage.getItem(RELOAD_COUNT_KEY) || 0);
+      if (count >= 1) return false;
+
+      // 滑动窗口：防止极短时间内连续刷新造成闪动
       var last = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || 0);
       if (last && Date.now() - last < RELOAD_GUARD_MS) return false;
+
       sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
+      sessionStorage.setItem(RELOAD_COUNT_KEY, String(count + 1));
       return true;
     } catch (e) {
       return true; // 拿不到 sessionStorage 就不拦
@@ -8748,14 +8791,31 @@
        * 只给测试用：走一遍刷新闸门判断并记录，但**不真的刷新**。
        * 用来验证"被闸门拦下时会留下 blocked 记录"。
        */
-      __requestReloadForTest: function (reason) {
+      /**
+       * 只给测试用：走一遍刷新闸门判断并记录，但**不真的刷新**。
+       *
+       * @param {string} reason 刷新原因
+       * @param {boolean} [keepQuota] 是否保留本次占用的配额。
+       *   默认 false（占完就还回去），这样调用方不会污染后续测试。
+       *   验证"配额会不会累积"的测试要传 true —— 还回去就永远试不出上限。
+       */
+      __requestReloadForTest: function (reason, keepQuota) {
         var ok = canAutoReload();
         rememberReload(reason, !ok);
-        if (!ok) return false;
-        // 真的会刷新就撤回闸门时间戳，避免污染后续测试
-        try { sessionStorage.removeItem(RELOAD_GUARD_KEY); } catch (e) { /* ignore */ }
-        return true;
+        try {
+          if (ok && !keepQuota) {
+            sessionStorage.removeItem(RELOAD_GUARD_KEY);
+            sessionStorage.removeItem(RELOAD_COUNT_KEY);
+          }
+        } catch (e) { /* ignore */ }
+        return ok;
       },
+      /**
+       * 只给测试用：「选择 / 重新连接文件夹」的完整业务逻辑（不碰 busy 状态）。
+       * 用来端到端验证"新浏览器连上已有存档的文件夹"这条路径 ——
+       * 也就是用户点那个按钮时真正跑的代码。
+       */
+      __pickAndRestoreFolderForTest: pickAndRestoreFolder,
       LS_HISTORY_SYNCED_AT: LS_HISTORY_SYNCED_AT,
       loadFromFolder: loadFromFolder,
       readManifest: readManifest,
