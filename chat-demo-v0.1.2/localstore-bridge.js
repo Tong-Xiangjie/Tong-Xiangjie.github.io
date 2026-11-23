@@ -86,7 +86,7 @@
     );
   }
 
-  var BRIDGE_VERSION = '1.3.0';
+  var BRIDGE_VERSION = '1.4.0';
 
   /**
    * 功能扩展层（localstore-features.js / .css）的内容指纹。
@@ -4647,6 +4647,8 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
 
   /** 上传尝试记录：出问题时能一眼看出「试了几次、每次什么错」 */
   var uploadLog = [];
+  /** 最近一次「文本附件回退」的判定现场（诊断用） */
+  var lastUploadDebug = null;
 
   /** 5xx / 429 视为瞬时故障，可以重试 */
   function isTransientStatus(status) {
@@ -5209,6 +5211,12 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
   function preloadUploadFile(body) {
     try {
       if (typeof FormData === 'undefined' || !(body instanceof FormData)) return;
+      // ★ 幂等保护 ★
+      // 现在有两处会调它：installFetchHook（协议判断之前）和 openAIAdapterUpload。
+      // 没有这个保护的话第二次会重新给 pendingUploadText 赋值、并再读一次
+      // 同一个 File 的 text() —— 那个流已经被读过，第二次只会拿到空字符串，
+      // 于是"正文没缓存"而上传又成功，附件就变成空的了。
+      if (pendingUploadText) return;
       var file = null;
       if (typeof body.get === 'function') file = body.get('file');
       if (!file || typeof file.text !== 'function') {
@@ -5272,6 +5280,193 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
     return lists;
   }
 
+  /* ------------------------------------------------------------------------
+   * 文本附件不上传：本地合成一个"上传成功"
+   *
+   * ★ 为什么必须这么做（真实故障）★
+   *
+   * 用户粘贴一大段文本 → 应用把它转成 .txt 附件 → 走到上传这一步，冒出
+   * 「上传失败」。实测中转站（llmapi.paratera.com）：
+   *
+   *   POST /anthropic/v1/files   → 404（这条路根本不存在）
+   *   POST /v1/files  + PDF      → 200 ✅
+   *   POST /v1/files  + .txt     → 400「文件格式暂不支持，仅支持:
+   *                                     pptx/ppt/docx/doc/xlsx/xls/pdf」
+   *   任何 purpose 都救不了 —— 它压根不收纯文本
+   *
+   * 而应用侧有个硬条件（从 bundle 挖出来）：
+   *
+   *   for (let n of e.attachments) {
+   *     let e = t[n.id];
+   *     if (e?.status !== 'done' || !e.serverId) return null;   // ← 整条消息作废
+   *   }
+   *
+   * 也就是说**没有 serverId 就发不出消息** —— 这不是"卡片难看"，是真卡死。
+   *
+   * 但文本附件**根本不需要上传**：桥接层本来就能把正文读出来、在发送时
+   * 内联进消息（见 degradeMediaBlocks / attachmentTextFor）。所以对纯文本
+   * 我们直接不发这个请求，伪造一个成功响应 + 一个本地 id，把正文按这个 id
+   * 缓存起来。效果：
+   *   · 卡片显示正常（不再"上传失败"）
+   *   · 正文 100% 内联送达，模型一定读得到
+   *   · 少一次注定失败的请求
+   *
+   * ★ 只对纯文本生效 ★
+   * 图片/PDF 不算在内：它们真的需要上传才能被模型看到，伪造成功只会
+   * 把"看得见的失败"换成"看不见的丢失"，那是更糟的结果。
+   * ---------------------------------------------------------------------- */
+
+  /** 中转站拒绝纯文本时会这么回（各家的措辞可能不同，所以按特征匹配） */
+  var UNSUPPORTED_FORMAT_RE = /格式暂不支持|暂不支持的文件格式|unsupported file|format.*not.*support/i;
+
+  /** 生成一个本地附件 id。形状照官方那个来（时间戳-十六进制.ext），便于识别 */
+  function makeLocalFileId(name) {
+    var CH = '0123456789abcdef';
+    var hex = '';
+    for (var i = 0; i < 32; i++) hex += CH[(Math.random() * 16) | 0];
+    var ext = (/\.([a-z0-9]+)$/i.exec(String(name || '')) || [, 'txt'])[1];
+    return Date.now() + '-' + hex + '.' + ext;
+  }
+
+  /**
+   * 从 FormData 里拿上传的文件信息。
+   * 注意：fetch 已经读过这个 FormData 了，所以别再去读它的流 ——
+   * 只取 file 对象本身的属性（name / type / size）是安全的。
+   */
+  function fileInfoFromForm(form) {
+    try {
+      if (typeof FormData === 'undefined' || !(form instanceof FormData)) return null;
+      var file = typeof form.get === 'function' ? form.get('file') : null;
+      if (!file && typeof form.forEach === 'function') {
+        form.forEach(function (v, k) { if (k === 'file' && v) file = v; });
+      }
+      if (!file) return null;
+      return { name: String(file.name || '附件.txt'), mime: String(file.type || '') };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * 文本附件走本地：不发请求，直接给应用一个"成功"。
+   * 返回 null 表示"这次不接管"（非文本 / 预读还没好 / 读不出正文）。
+   */
+  function makeLocalTextUploadResponse() {
+    try {
+      if (!pendingUploadText) return null;
+      if (!isTextishFile(pendingUploadText)) return null;
+      if (!pendingUploadText.promise) return null;
+
+      // ★ 必须先把对象抓在局部变量里 ★
+      // 下面马上会把全局的 pendingUploadText 置为 null，而 .then 回调是**异步**的 ——
+      // 回调执行时再去读全局变量就是 null 了，`var id = pendingUploadText.localId`
+      // 会抛错（被 catch 吞掉），正文于是永远存不进缓存。
+      // 表现就是：上传显示成功，但发消息时模型只看到一句占位说明。
+      var pend = pendingUploadText;
+      var id2 = makeLocalFileId(pend.name);
+      pend.localId = id2;
+      // 清掉全局引用，避免污染下一次上传（局部 pend 仍然有效）
+      pendingUploadText = null;
+
+      // 正文可能已经解析完了，也可能还要等一会儿 —— 两条路都走一遍
+      function store(text) {
+        try {
+          if (typeof text !== 'string' || !text) return;
+          rememberFileText(id2, pend.name, text, pend.mime);
+          traceNet({
+            kind: 'local-text-upload', id: id2,
+            note: '正文已本地缓存 ' + text.length + ' 字符，发送时将内联'
+          });
+        } catch (e) {
+          sniffState.errors.push('local-text-store: ' + ((e && e.message) || e));
+        }
+      }
+      if (typeof pend.text === 'string' && pend.text) store(pend.text);
+      pend.promise.then(store).catch(function (e) {
+        sniffState.errors.push('local-text-promise: ' + ((e && e.message) || e));
+      });
+
+      var body = JSON.stringify({
+        id: id2,
+        object: 'file',
+        bytes: 0,
+        created_at: Date.now(),
+        filename: '',
+        purpose: 'user_data',
+        status: 'processed',
+        local: true
+      });
+      return new Response(body, {
+        status: 200,
+        statusText: 'OK',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (e) {
+      sniffState.errors.push('local-text-upload: ' + ((e && e.message) || e));
+      return null;
+    }
+  }
+
+  /**
+   * 包一层：先试真正的上传；如果失败原因是"不支持这种文件格式"，
+   * 而它又恰好是纯文本，就改成走本地。
+   *
+   * 为什么按错误内容判断、而不是无条件本地化：
+   * 只有在**确认服务端不要这个文件**时才跳过；其它错误（网络抖动、429、
+   * 5xx）得留给重试逻辑，不能被我们吞掉。
+   */
+  function uploadWithLocalTextFallback(runUpload, form) {
+    var info = fileInfoFromForm(form) ||
+      (pendingUploadText ? { name: pendingUploadText.name, mime: pendingUploadText.mime } : null);
+    // 诊断用：把每一步判定记下来（上传分支是异步的，出错时光看返回值得不到线索）
+    var dbg = {
+      info: info,
+      pendingNonNull: !!pendingUploadText,
+      pendingName: pendingUploadText ? pendingUploadText.name : null,
+      pendingHasPromise: !!(pendingUploadText && pendingUploadText.promise),
+      textishAll: !!(pendingUploadText && isTextishFile(pendingUploadText)),
+      textish: !!(info && isTextishFile({ name: info.name, type: info.mime })),
+      gotRes: null, gotStatus: null, fallback: '', final: ''
+    };
+    lastUploadDebug = dbg;
+    return Promise.resolve()
+      .then(function () { return runUpload(); })
+      .then(function (res) {
+        dbg.gotRes = res ? (res.constructor && res.constructor.name) : String(res);
+        dbg.gotStatus = res ? res.status : null;
+        if (!res) { dbg.fallback = '跳过：上传返回了 null（不是 Response）'; dbg.final = 'null'; return res; }
+        var textish = info && isTextishFile({ name: info.name, type: info.mime });
+        if (!textish) { dbg.fallback = '跳过：不是纯文本'; dbg.final = 'HTTP ' + res.status; return res; }
+        if (res.status !== 400 && res.status !== 415 && res.status !== 404) {
+          dbg.fallback = '跳过：状态码不是 400/415/404';
+          dbg.final = 'HTTP ' + res.status;
+          return res;
+        }
+        return res.clone().text().then(function (t) {
+          if (!UNSUPPORTED_FORMAT_RE.test(String(t || ''))) {
+            dbg.fallback = '跳过：错误内容不像"格式不支持"';
+            dbg.final = 'HTTP ' + res.status;
+            return res;
+          }
+          traceNet({
+            kind: 'local-text-upload',
+            status: res.status,
+            note: '服务端不收纯文本，改走本地内联：' + info.name,
+            body: String(t).slice(0, 160)
+          });
+          log('服务端不支持纯文本附件（HTTP ' + res.status + '），「' + info.name + '」改为本地内联');
+          var local = makeLocalTextUploadResponse();
+          dbg.fallback = local ? '已改走本地内联' : '想改本地但 makeLocalTextUploadResponse 返回 null';
+          dbg.final = local ? 'HTTP 200（本地合成）' : 'HTTP ' + res.status;
+          return local || res;
+        }).catch(function (e) {
+          dbg.fallback = '读错误内容时异常：' + ((e && e.message) || e);
+          dbg.final = 'HTTP ' + res.status;
+          return res;
+        });
+      });
+  }
+
   /**
    * 上传请求改道 + 换鉴权头。
    * 返回 null 表示"没接管"，调用方回退到原逻辑。
@@ -5297,6 +5492,8 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
       }
 
       preloadUploadFile(form);
+      var pendingName = pendingUploadText ? pendingUploadText.name : '';
+      var pendingMime = pendingUploadText ? pendingUploadText.mime : '';
 
       traceNet({
         kind: 'openai-upload',
@@ -5324,8 +5521,8 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
       var remembered = getFilePurpose(url);
 
       // purpose 的顺序按文件类型来（PDF 必须先试 text_recognition，见 purposeOrderFor）
-      var pendName = pendingUploadText ? pendingUploadText.name : '';
-      var pendMime = pendingUploadText ? pendingUploadText.mime : '';
+      var pendName = pendingName;
+      var pendMime = pendingMime;
       var ladders = purposeOrderFor(pendName, pendMime);
       var ordered = [];
 
@@ -5345,10 +5542,33 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
       log('附件 purpose 尝试顺序：' + purposes.join(' → ') +
         '（文件=' + (pendName || '?') + '，类型=' + (pendMime || '?') + '）');
 
+      /**
+       * ★ 最后一次被拒的响应必须留着 ★
+       *
+       * 之前这里所有 purpose 都被拒时直接 `return null`，于是整个上传 promise
+       * resolve 成 null，应用拿到 null 就当"上传失败" —— 而且**真实原因被丢掉**：
+       * 中转站明明回了「文件格式暂不支持，仅支持 pptx/ppt/docx/doc/xlsx/xls/pdf」，
+       * 用户却只看到干巴巴的"上传失败"。
+       *
+       * 现在把被拒的响应原样交回，让应用（以及我们的纯文本本地回退）
+       * 都能看到真正的错误内容。
+       *
+       * ★ 为什么要区分「格式」与「purpose」两类 ★
+       * 同一个 .txt 会被不同 purpose 拒绝成不同的话术：
+       *   user_data → 「文件格式暂不支持，仅支持 …」   ← 根因
+       *   assistants/vision → 「错误的purpose类型」
+       *   file/text_recognition → 「Invalid purpose: …」
+       * 如果只记"最后一条"，拿到的是"Invalid purpose"，那只是**换 purpose 换错了**，
+       * 不是"这个文件根本不被接受"。根因会被噪音盖掉，回退也就无从判断。
+       * 所以命中「格式不支持」的那条要优先保留。
+       */
+      var lastRejected = null;
+      var rejectedFormat = null;
+
       function attempt(n) {
         if (n >= purposes.length) {
           traceNet({ kind: 'openai-upload', note: '所有 purpose 取值都被拒绝' });
-          return null;
+          return rejectedFormat || lastRejected;
         }
         var purpose = purposes[n];
         var body = form;
@@ -5392,9 +5612,15 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
               kind: 'openai-upload', status: res.status,
               note: 'purpose=' + purpose + ' 被拒', body: String(txt).slice(0, 160)
             });
+            lastRejected = res;
+            // 「格式不支持」是根因，优先级高于「purpose 类型不对」这类噪音
+            if (!rejectedFormat && UNSUPPORTED_FORMAT_RE.test(String(txt || ''))) {
+              rejectedFormat = res;
+            }
             if (again) return attempt(n + 1);
             return res;
           }).catch(function () {
+            lastRejected = res;
             if (again) return attempt(n + 1);
             return res;
           });
@@ -5410,8 +5636,12 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
         // 把响应里的文件 id 与预读的正文对上，供聊天时内联
         try {
           var clone = res.clone();
-          var pend = pendingUploadText;
-          pendingUploadText = null;
+          // ★ 只有成功才消费 pendingUploadText ★
+          // 以前这里无条件清空。可上传失败时 attempt 现在会把真实的错误响应交回来
+          // （见上面 lastRejected），此时正文还没被用掉 —— 一清空，后面的
+          // 「纯文本改走本地内联」就拿不到 pendingUploadText 了，内容彻底丢失。
+          var pend = res.ok ? pendingUploadText : null;
+          if (res.ok) pendingUploadText = null;
           clone.json().then(function (j) {
             var id = j && (j.id || j.file_id || (j.data && j.data.id));
             if (!id) {
@@ -5587,7 +5817,20 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
         messages: oa.messages.length,
         key: maskKey(key),
         keyFrom: keyFrom,
-        hasTools: !!oa.tools
+        hasTools: !!oa.tools,
+        // 附件内联结果：出问题时一眼看出"正文到底有没有送出去"
+        // （附件正文可能很长，这里只记有没有、以及用户消息开头一小段）
+        attachment: (function () {
+          try {
+            var raw = JSON.stringify(oa);
+            var inline = raw.indexOf('［附件：') >= 0;
+            return {
+              inline: inline,
+              unavailable: raw.indexOf('未能读取到内容') >= 0,
+              bytes: raw.length
+            };
+          } catch (e) { return null; }
+        })()
       });
 
       log('OpenAI 协议适配：POST ' + url + '（model=' + oa.model + '，' +
@@ -5727,22 +5970,40 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
 
       // 附件上传
       if (method === 'POST' && urlLooksLikeFiles(rawUrl)) {
+        var upForm = init && init.body;
+        // ★ 无论走哪个协议，都先把文本正文预读下来。★
+        // 这一步以前只在 openAIAdapterUpload 里做，而它开头就有
+        // `resolveProtocolLive() !== 'openai' → return null`，
+        // 于是非 OpenAI 协议时正文根本没被缓存 —— 上传一失败，内容就彻底丢了。
+        // 预读本身有幂等保护（已经读过就跳过），放这里调是安全的。
+        try {
+          preloadUploadFile(upForm);
+        } catch (e) {
+          sniffState.errors.push('preload-upload: ' + ((e && e.message) || e));
+        }
         // OpenAI 协议下先把上传改道到 /v1/files（Anthropic 那条路中转站没有），
         // 并把文本附件的正文预读下来，供聊天时内联。
         try {
           var up = openAIAdapterUpload(original, input, init, rawUrl);
+          if (lastUploadDebug) lastUploadDebug.upIsPromise = !!up;
           if (up) {
-            // 仍然保留瞬时故障重试（网络抖动 / 429 / 5xx）
-            return retryUpload(function () { return up; });
+            // 仍然保留瞬时故障重试（网络抖动 / 429 / 5xx）；
+            // 服务端明确说"不收纯文本"时改走本地内联。
+            return uploadWithLocalTextFallback(function () {
+              return retryUpload(function () { return up; });
+            }, upForm);
           }
         } catch (e) {
           sniffState.errors.push('openai-upload-hook: ' + ((e && e.message) || e));
         }
-        // 加一层瞬时故障重试
-        return retryUpload(function () {
-          return original(input, init);
-        });
+        // 加一层瞬时故障重试（同样带"纯文本改走本地"的兜底）
+        return uploadWithLocalTextFallback(function () {
+          return retryUpload(function () {
+            return original(input, init);
+          });
+        }, upForm);
       }
+
 
       // 单次请求 token 上限：超了就在本机截断，别让服务端整条打回
       // （服务端错误形如 `user input too long, 34112 tokens exceeds max 32768 tokens`）
@@ -10349,6 +10610,8 @@ var FEATURES_CSS_VERSION = 'ed30c0ee';
           bridgeVersion: BRIDGE_VERSION,
           preflight: pf,
           entries: uploadLog.slice(),
+          /** 「文本附件改走本地」这条分支的判定现场 */
+          lastTextFallback: lastUploadDebug,
           /** 一句话结论，方便直接复制给他人 */
           report:
             'bridge v' +
