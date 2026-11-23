@@ -3019,8 +3019,205 @@
 
     // 应用监听的是 change；用真实 Event 走 React 的合成事件系统
     input.dispatchEvent(new Event('change', { bubbles: true }));
+    // 记住这份原文，好在附件卡片上给出「粘贴至输入框」按钮
+    rememberPaste(name, text);
     log('粘贴内容过大（' + text.length + ' 字 / ' + text.split('\n').length + ' 行），已转成 .txt 附件：' + name);
     return true;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * 功能 4b：附件卡片上的「粘贴至输入框」
+   *
+   * 需求原话：「粘贴转txt的文件应该要有一个粘贴至输入框的选项」。
+   *
+   * 场景：粘一大段东西 → 变成 .txt 附件 → 想改一改再发，却发现原文
+   * 进不去输入框了（因为守卫故意 preventDefault 掉了）。这个按钮把原文
+   * 放回输入框。
+   *
+   * 两个必须解决的问题：
+   *
+   * ① **原文存哪**：原文可能几十万字，localStorage 直接塞会超配额。
+   *    改用 sessionStorage，并限制「最多记住几段 / 单段最多多大」——
+   *    存不下时的后果只是这个按钮不出现，不会影响粘贴本身。
+   *
+   * ② **放回输入框时会再次触发粘贴守卫**：直接改 value 是没用的，
+   *    React 受控组件认的是它自己那套 value setter；而真的派发 paste 事件
+   *    又会被 looksBig 拦下、再次变成附件（死循环）。
+   *    所以用一个"放行"标志让守卫跳过这一次。
+   *
+   * 按钮只加在**文件名对得上**的卡片上 —— 也就是只加在自己粘出来的
+   * .txt 附件上，用户手动上传的 .txt 不会被碰。
+   * ------------------------------------------------------------------ */
+  var LS_PASTE_TEXTS = 'chat-demo:ls-paste-texts';
+  var PASTE_KEEP_MAX = 8;                        // 最多记住 8 段
+  var PASTE_KEEP_BYTES = 2 * 1024 * 1024;        // 单段最多 2MB
+  var PASTE_BTN_CLASS = 'ls-paste-into-input';
+  var pasteBypass = false;                       // 见 ②
+
+  function readPasteTexts() {
+    try {
+      var v = JSON.parse(sessionStorage.getItem(LS_PASTE_TEXTS) || '{}');
+      return v && typeof v === 'object' ? v : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function writePasteTexts(map) {
+    try {
+      sessionStorage.setItem(LS_PASTE_TEXTS, JSON.stringify(map));
+      return true;
+    } catch (e) {
+      // 超配额：从最旧的开始丢，尽量保住最近几段
+      try {
+        var keys = Object.keys(map);
+        while (keys.length > 1) {
+          delete map[keys.shift()];
+          try {
+            sessionStorage.setItem(LS_PASTE_TEXTS, JSON.stringify(map));
+            return true;
+          } catch (e2) { /* 继续丢 */ }
+        }
+      } catch (e3) { /* ignore */ }
+      return false;
+    }
+  }
+
+  function rememberPaste(name, text) {
+    if (!name || typeof text !== 'string') return;
+    if (text.length > PASTE_KEEP_BYTES) return;   // 太大就不记，按钮不出现而已
+    var map = readPasteTexts();
+    map[name] = text;
+    var keys = Object.keys(map);
+    while (keys.length > PASTE_KEEP_MAX) delete map[keys.shift()];
+    writePasteTexts(map);
+  }
+
+  /** 把文本放回输入框（React 受控组件要的是原生 setter + input 事件） */
+  function putTextIntoComposer(text) {
+    var ta = document.querySelector(SEL.textarea);
+    if (!ta) return false;
+    var proto = ta.tagName === 'TEXTAREA'
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
+    var setter = Object.getOwnPropertyDescriptor(proto, 'value');
+    try {
+      pasteBypass = true;                     // 关键：让守卫放行这一次
+      if (setter && setter.set) setter.set.call(ta, text);
+      else ta.value = text;
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      ta.focus();
+      // 光标放到末尾
+      try { ta.setSelectionRange(text.length, text.length); } catch (e) { /* ignore */ }
+      return true;
+    } catch (e) {
+      warn('把原文放回输入框失败', e);
+      return false;
+    } finally {
+      pasteBypass = false;
+    }
+  }
+
+  var pasteBtnIcon = null;
+  function pasteBtnIconSvg() {
+    if (pasteBtnIcon) return pasteBtnIcon.cloneNode(true);
+    // 一个「剪贴板 → 方框」的小图标，尺寸对齐卡片里其它元素
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', '12');
+    svg.setAttribute('height', '12');
+    svg.setAttribute('viewBox', '0 0 16 16');
+    svg.setAttribute('fill', 'none');
+    var p1 = document.createElementNS(NS, 'path');
+    p1.setAttribute('d', 'M5.5 3.5h-1A1.5 1.5 0 0 0 3 5v8A1.5 1.5 0 0 0 4.5 14.5h7A1.5 1.5 0 0 0 13 13V5a1.5 1.5 0 0 0-1.5-1.5h-1');
+    p1.setAttribute('stroke', 'currentColor');
+    p1.setAttribute('stroke-width', '1.4');
+    p1.setAttribute('stroke-linecap', 'round');
+    var p2 = document.createElementNS(NS, 'rect');
+    p2.setAttribute('x', '5.5'); p2.setAttribute('y', '1.5');
+    p2.setAttribute('width', '5'); p2.setAttribute('height', '3');
+    p2.setAttribute('rx', '1');
+    p2.setAttribute('stroke', 'currentColor');
+    p2.setAttribute('stroke-width', '1.4');
+    svg.appendChild(p1);
+    svg.appendChild(p2);
+    pasteBtnIcon = svg;
+    return svg.cloneNode(true);
+  }
+
+  /** 给一张附件卡片加按钮（同名卡片只加一次） */
+  function decoratePasteCard(card) {
+    if (!card || card.querySelector('.' + PASTE_BTN_CLASS)) return false;
+    var caption = card.querySelector('[class*="caption-"]');
+    if (!caption) return false;
+    var name = (caption.textContent || '').trim();
+    if (!/\.txt$/.test(name)) return false;
+    var texts = readPasteTexts();
+    if (!texts[name]) return false;
+
+    var btn = el('button', PASTE_BTN_CLASS);
+    btn.type = 'button';
+    btn.title = '把这段粘贴的原文放回输入框，可以改完再发';
+    btn.setAttribute('aria-label', '粘贴至输入框');
+    btn.appendChild(pasteBtnIconSvg());
+    btn.appendChild(document.createTextNode('粘贴至输入框'));
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      var cur = readPasteTexts()[name];
+      if (!cur) { warn('这段粘贴的原文已经不在了（可能刷新过或超过上限）'); return; }
+      if (putTextIntoComposer(cur)) {
+        log('已把「' + name + '」的原文放回输入框（' + cur.length + ' 字）');
+        // 放回输入框后这张卡片就没用了，顺手撤掉，避免重复发送
+        try {
+          var closer = card.querySelector('button[aria-label*="删除"], button[aria-label*="Remove"], button[aria-label*="Delete"]');
+          if (closer) closer.click();
+          else card.remove();
+        } catch (e) { /* 删不掉也不影响，原文已经在输入框里了 */ }
+      }
+    });
+    card.appendChild(btn);
+    return true;
+  }
+
+  function scanPasteCards() {
+    var cards = document.querySelectorAll('[class*="attachments-"] > [class*="card-"]');
+    for (var i = 0; i < cards.length; i++) decoratePasteCard(cards[i]);
+  }
+
+  function installPasteRestore() {
+    if (!featureOn('paste')) return;
+    if (window.__lsPasteRestore) return;
+    window.__lsPasteRestore = true;
+    // 输入区是 React 重渲染出来的，卡片出现/消失都要重新扫一遍。
+    // 用 200ms 节流：粘贴一次只会插一张卡片，不至于有多频繁。
+    var t = null;
+    var schedule = function () {
+      if (t) return;
+      t = setTimeout(function () { t = null; scanPasteCards(); }, 200);
+    };
+    try {
+      var mo = new MutationObserver(schedule);
+      mo.observe(document.body, { childList: true, subtree: true });
+    } catch (e) { /* 没有 MutationObserver 也不致命，下面还有定时兜底 */ }
+    setInterval(schedule, 2000);
+    schedule();
+  }
+
+  /** 粘贴守卫的"最后一次判定"记录，用来解释为什么没转成附件 */
+  var lastPaste = { at: 0, chars: 0, big: false, ok: false, reason: '' };
+
+  function notePaste(reason, chars, big, ok) {
+    lastPaste = {
+      at: Date.now(), chars: chars || 0, big: !!big, ok: !!ok,
+      reason: reason, input: (function () {
+        try {
+          var i = findUploadInput();
+          if (!i) return 'none';
+          return 'multiple=' + !!i.multiple + ' connected=' + i.isConnected;
+        } catch (e) { return 'err'; }
+      })()
+    };
   }
 
   function installPasteGuard() {
@@ -3031,23 +3228,36 @@
 
     document.addEventListener('paste', function (ev) {
       try {
+        // 由「粘贴至输入框」按钮程序化放回的原文：放行，不再转成附件
+        if (pasteBypass) { notePaste('放行：来自「粘贴至输入框」按钮', 0, false, false); return; }
+
         var ta = ev.target;
-        if (!ta || !ta.matches || !ta.matches(SEL.textarea)) return;
+        if (!ta || !ta.matches || !ta.matches(SEL.textarea)) {
+          notePaste('目标不是输入框', 0, false, false);
+          return;
+        }
         var dt = ev.clipboardData;
-        if (!dt) return;
+        if (!dt) { notePaste('剪贴板没有数据', 0, false, false); return; }
         var text = dt.getData('text/plain') || '';
-        if (!looksBig(text)) return;
+        var big = looksBig(text);
+        if (!big) {
+          notePaste('文本不够大（' + text.length + ' 字），按普通粘贴处理', text.length, false, false);
+          return;
+        }
 
         // 先试着转成 .txt 附件；只有成功了才拦掉默认粘贴。
         // 顺序很重要：万一 DataTransfer / file input 不可用，
         // 就让粘贴照常发生 —— 宁可把长文本塞进输入框，也不能让用户的东西消失。
         if (!attachTextAsFile(text)) {
+          notePaste('转附件失败（没找到上传输入框，或浏览器不允许赋值 files）', text.length, true, false);
           warn('转 .txt 附件失败，这次粘贴按原样写进输入框');
           return;
         }
+        notePaste('已转成 .txt 附件', text.length, true, true);
         ev.preventDefault();
         ev.stopPropagation();
       } catch (e) {
+        notePaste('异常：' + ((e && e.message) || e), 0, false, false);
         warn('粘贴处理失败', e);
       }
     }, true);
@@ -3745,6 +3955,7 @@
         if (ok || tries > 200) {
           applyAll();
           installPasteGuard();
+          installPasteRestore();
           startObserver();
           startMenuWatcher();
           startScrollWatcher();
@@ -3783,6 +3994,23 @@
     findUploadInput: findUploadInput,
     PASTE_MIN_CHARS: PASTE_MIN_CHARS,
     PASTE_MIN_LINES: PASTE_MIN_LINES,
+    /**
+     * 「粘贴转 .txt 为什么没生效」的现场记录。
+     * 用法：粘一段大文本，然后看 window.__lsFeatures.lastPaste
+     *   reason 会直接说明是哪一步没通过（文本不够大 / 没找到上传输入框 / 已转成附件…）
+     */
+    get lastPaste() { return lastPaste; },
+    /** 手动扫一遍附件卡片，给粘出来的 .txt 加「粘贴至输入框」按钮 */
+    scanPasteCards: scanPasteCards,
+    /** 直接调：把某段原文放回输入框（测试用） */
+    putIntoComposer: putTextIntoComposer,
+    /** 已记住的粘贴原文（名字 → 字数），调试用 */
+    get rememberedPastes() {
+      var m = readPasteTexts();
+      var out = {};
+      Object.keys(m).forEach(function (k) { out[k] = String(m[k]).length; });
+      return out;
+    },
     // 功能 5
     searchSessions: searchSessions,
     openSessionByTitle: openSessionByTitle,

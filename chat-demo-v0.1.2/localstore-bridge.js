@@ -101,8 +101,8 @@
    * 现在改成内容哈希：features 一变 → 这里的值变 → 桥接层内容变 →
    * 桥接层指纹变 → index.html 里的 ?v 变 → 浏览器必然重新拉取。
    */
-  var FEATURES_JS_VERSION = '308d8458';
-var FEATURES_CSS_VERSION = 'ba3bc949';
+  var FEATURES_JS_VERSION = 'c6b96f07';
+var FEATURES_CSS_VERSION = 'ed30c0ee';
 
   // -------------------------------------------------------------------------
   // 小工具
