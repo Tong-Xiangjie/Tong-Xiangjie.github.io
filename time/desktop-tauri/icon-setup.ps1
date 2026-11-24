@@ -1,6 +1,7 @@
 # One-time setup that lets the taskbar / shortcut icon follow the clock.
 #
 #   install :  .\icon-setup.ps1
+#   install :  .\icon-setup.ps1 -Exe "D:\Tools\TimeClock\timeclock.exe"
 #   undo    :  .\icon-setup.ps1 -Undo
 #
 # What it does:
@@ -16,11 +17,22 @@
 # The app itself does all of the above every minute while it is running, so
 # this script only matters for the very first setup (or after moving the exe).
 
-param([switch]$Undo)
+param([switch]$Undo, [string]$Exe)
 
 $ErrorActionPreference = 'Stop'
 $root   = Split-Path -Parent $MyInvocation.MyCommand.Path
-$exe    = Join-Path $root 'src-tauri\target\release\timeclock.exe'
+
+# Where is timeclock.exe?  In order of preference:
+#   1. whatever -Exe says
+#   2. right next to this script  (the downloaded-from-a-release case)
+#   3. the dev build output       (the repo case)
+$cand = @()
+if ($Exe) { $cand += $Exe }
+$cand += (Join-Path $root 'timeclock.exe')
+$cand += (Join-Path $root 'src-tauri\target\release\timeclock.exe')
+$found = $cand | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if ($found) { $exe = (Resolve-Path -LiteralPath $found).Path }
+else        { $exe = $cand[$cand.Count - 1] }
 $data   = Join-Path $env:LOCALAPPDATA 'TimeClock'
 $ico    = Join-Path $data 'clock.ico'
 $list   = Join-Path $data 'shortcuts.txt'
@@ -63,8 +75,12 @@ if ($Undo) {
 }
 
 Write-Host '== install =='
-if (-not (Test-Path $exe)) { throw "not found: $exe  (build it first: cargo build --release)" }
-if (-not (Test-Path $data)) { New-Item -ItemType Directory -Path $data | Out-Null }
+if (-not (Test-Path -LiteralPath $exe)) {
+  throw ("timeclock.exe not found (looked for: " + ($cand -join ' | ') + "). " +
+         "Put it next to this script, or pass the path: .\icon-setup.ps1 -Exe `"<full path>\timeclock.exe`"")
+}
+Write-Host "  using exe: $exe"
+if (-not (Test-Path -LiteralPath $data)) { New-Item -ItemType Directory -Path $data | Out-Null }
 
 Write-Host '  drawing the initial .ico'
 & $exe --icon-tick

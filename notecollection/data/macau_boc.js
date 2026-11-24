@@ -56,8 +56,27 @@ const macau_bocData = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/AK09086-2.jpg"
                         }
                     ]
-                },
-                {
+                },{
+                    varietyName: "澳门币20元 妈阁庙",
+                    copies: [
+                        {
+                            copyId: 22339799,
+                            year: 2003,
+                            version: "GE26829",
+                            bank: "中国银行",
+                            condition: "ACG 66E",
+                            price: "30元",
+                            purchaseDate: "2026年11月24日",
+                            krause: "103",
+                            signature: "澳门分行总经理：张鸿义",
+                            faceDate: "2003年12月8日",
+                            size: "mm*mm",
+                            remark: "",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/22339799-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/macau_boc/22339799-2.jpg"
+                        }
+                    ]
+                },{
                     varietyName: "澳门币100元 外港客运码头",
                     copies: [
                         {
