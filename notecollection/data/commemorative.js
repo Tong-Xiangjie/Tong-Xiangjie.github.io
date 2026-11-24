@@ -20,7 +20,7 @@ const commemorativeData = {
     ],
     series: [
         { 
-            seriesName: "澳门格兰披治大奖赛35周年纪念钞",
+            seriesName: "1988年 澳门格兰披治大奖赛35周年纪念钞",
             year: "1988",
             copies: [
                 { 
@@ -57,7 +57,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "新台币发行五十周年纪念钞",
+            seriesName: "1999年 新台币发行五十周年纪念钞",
             year: "1999",
             copies: [
                 { 
@@ -117,7 +117,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "庆祝中华人民共和国成立50周年纪念钞",
+            seriesName: "1999年 庆祝中华人民共和国成立50周年纪念钞",
             year: "1999",
             copies: [
                 { 
@@ -175,7 +175,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "迎接新世纪纪念钞",
+            seriesName: "2000年 迎接新世纪纪念钞",
             year: "2000",
             readme: {
                 title: "跟着纸币游中国 | 中华世纪坛",
@@ -227,7 +227,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第29届奥林匹克运动会纪念钞",
+            seriesName: "2008年 第29届奥林匹克运动会纪念钞",
             year: "2008",
             copies: [
                 { 
@@ -251,7 +251,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第29届奥林匹克运动会纪念钞（香港）",
+            seriesName: "2008年 第29届奥林匹克运动会纪念钞（香港）",
             year: "2008",
             copies: [
                 { 
@@ -275,7 +275,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第29届奥林匹克运动会纪念钞（澳门）",
+            seriesName: "2008年 第29届奥林匹克运动会纪念钞（澳门）",
             year: "2008",
             readmes: [
                 { title: "奥林匹克运动会澳门元纪念钞", content: "file:readmes/macau_aoyun2008.html" }
@@ -302,12 +302,12 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "渣打银行成立150周年纪念钞",
+            seriesName: "2009年 渣打银行成立150周年纪念钞",
             year: "2009",
             copies: [] 
         },
         { 
-            seriesName: "庆祝中华民国建国一百年纪念钞",
+            seriesName: "2011年 庆祝中华民国建国一百年纪念钞",
             year: "2011",
             copies: [
                 { 
@@ -349,7 +349,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "纪念中国银行成立一百周年纪念钞（香港）",
+            seriesName: "2012年 纪念中国银行成立一百周年纪念钞（香港）",
             year: "2012",
             copies: [
                 { 
@@ -390,7 +390,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "纪念中国银行成立一百周年纪念钞（澳门）",
+            seriesName: "2012年 纪念中国银行成立一百周年纪念钞（澳门）",
             year: "2012",
             readmes: [
                 { title: "纪念中国银行成立一百周年澳门币", content: "file:readmes/macau_boc100years.html" }
@@ -417,7 +417,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "澳门生肖贺岁钞",
+            seriesName: "2012～2023年 澳门生肖贺岁钞",
             year: "2012～2023",
             "varieties": [
                 {
@@ -699,7 +699,7 @@ const commemorativeData = {
             ]  
         },
         { 
-            seriesName: "中国航天纪念钞",
+            seriesName: "2015年 中国航天纪念钞",
             year: "2015",
             copies: [
                 { 
@@ -759,7 +759,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "汇丰银行成立一百五十周年纪念钞",
+            seriesName: "2015年 汇丰银行成立一百五十周年纪念钞",
             year: "2015",
             copies: [
                 { 
@@ -783,7 +783,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "中国银行在港服务一百周年纪念钞",
+            seriesName: "2017年 中国银行在港服务一百周年纪念钞",
             year: "2017",
             copies: [
                 { 
@@ -807,7 +807,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "人民币发行七十周年纪念钞",
+            seriesName: "2018年 人民币发行七十周年纪念钞",
             year: "2018",
             readme: {
                 title: "跟着纸币游中国 | 中国人民银行总行大楼",
@@ -853,7 +853,7 @@ const commemorativeData = {
             ] 
         },
         {
-            "seriesName": "庆祝澳门回归祖国二十周年纪念钞",
+            "seriesName": "2019年 庆祝澳门回归祖国二十周年纪念钞",
             "year": "2019",
             "varieties": [
                 {
@@ -908,7 +908,7 @@ const commemorativeData = {
             ]
         },
         { 
-            seriesName: "第24届冬季奥林匹克运动会纪念钞（冰上运动）",
+            seriesName: "2022年 第24届冬季奥林匹克运动会纪念钞（冰上运动）",
             year: "2022",
             copies: [
                 { 
@@ -932,7 +932,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第24届冬季奥林匹克运动会纪念钞（雪上运动）",
+            seriesName: "2022年 第24届冬季奥林匹克运动会纪念钞（雪上运动）",
             year: "2022",
             copies: [
                 { 
@@ -992,7 +992,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第24届冬季奥林匹克运动会纪念钞（香港）",
+            seriesName: "2022年 第24届冬季奥林匹克运动会纪念钞（香港）",
             year: "2022",
             copies: [
                 { 
@@ -1034,7 +1034,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "第24届冬季奥林匹克运动会纪念钞（澳门）",
+            seriesName: "2022年 第24届冬季奥林匹克运动会纪念钞（澳门）",
             year: "2022",
             readmes: [
                 { title: "庆祝第24届冬季奥林匹克运动会主题钞票", content: "file:readmes/macau_dongao.html" }
@@ -1061,7 +1061,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "龙年贺岁纪念钞",
+            seriesName: "2024年 龙年贺岁纪念钞",
             year: "2024",
             readme: {
                 title: "龙年贺岁纪念钞发行公告",
@@ -1089,7 +1089,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "蛇年贺岁纪念钞",
+            seriesName: "2025年 蛇年贺岁纪念钞",
             year: "2025",
             readme: {
                 title: "蛇年贺岁纪念钞发行公告",
@@ -1117,7 +1117,7 @@ const commemorativeData = {
             ] 
         },
         { 
-            seriesName: "马年贺岁纪念钞",
+            seriesName: "2026年 马年贺岁纪念钞",
             year: "2026",
             readme: {
                 title: "马年贺岁纪念钞发行公告",
