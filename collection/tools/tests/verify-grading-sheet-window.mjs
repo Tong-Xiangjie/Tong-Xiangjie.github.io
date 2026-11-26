@@ -231,6 +231,7 @@ const sumProbe = await J(`var m = document.querySelector('.sheet-modal');
     sumText: sumBox ? sumBox.textContent.replace(/\\s+/g,' ').trim() : '',
     gap: (thRect && headRect) ? Math.round(thRect.top - headRect.bottom) : null,
     borderTop: thCs ? thCs.borderTopWidth : null, borderBottom: thCs ? thCs.borderBottomWidth : null,
+    thBg: thCs ? thCs.backgroundColor : '', thBgImg: thCs ? thCs.backgroundImage : '',
     collapse: tbl ? getComputedStyle(tbl).borderCollapse : null,
     anim: getComputedStyle(m).animationName,
     soldCount: soldRows.length, soldDeco: soldCs ? soldCs.textDecorationLine : '', soldColor: soldCs ? soldCs.color : '',
@@ -245,6 +246,17 @@ ok(parseFloat(sumProbe.borderTop) > 0 && parseFloat(sumProbe.borderBottom) > 0 &
     `⑧ 表头上下都有框线（上 ${sumProbe.borderTop} / 下 ${sumProbe.borderBottom}，border-collapse=${sumProbe.collapse}）`);
 ok(sumProbe.soldCount >= 1 && sumProbe.soldCount < sumProbe.dataRows && sumProbe.soldDeco === 'line-through',
     `⑨ 已售出/退回的行灰化 + 删除线，且**不是全标**（${sumProbe.soldCount}/${sumProbe.dataRows} 行，text-decoration=${sumProbe.soldDeco}，色 ${sumProbe.soldColor}）`);
+// ★ 表头必须**真正不透明**：玻璃主题下 --bg-light 是半透明的，只靠它铺底会透出下面滚过的行
+//   （用户 2026-11 报"表头上面还是漏字"）。判据：computed backgroundColor 的 alpha = 1，
+//   并且还有一层主题色叠层（保证观感跟主题走）。
+const thAlpha = (() => {
+    const m = String(sumProbe.thBg || '').match(/rgba?\(([^)]+)\)/);
+    if (!m) return null;
+    const parts = m[1].split(',').map(s => parseFloat(s));
+    return parts.length === 4 ? parts[3] : 1;
+})();
+ok(thAlpha === 1 && /linear-gradient/.test(sumProbe.thBgImg || ''),
+    `⑧ 表头背景**不透明**（backgroundColor=${sumProbe.thBg}，alpha=${thAlpha}；叠层=${/linear-gradient/.test(sumProbe.thBgImg || '')}）`);
 ok(sumProbe.anim && sumProbe.anim !== 'none', `⑩ 小窗出现时有动画（animation-name=${sumProbe.anim}）`);
 
 // ④b 抬头格式（用户 2026-11 指定的样式）

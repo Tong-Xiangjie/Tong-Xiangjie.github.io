@@ -35,7 +35,12 @@
             //   关闭按钮照 .modal-close 的样子（右上角圆形、半透明黑底、hover 变深）。
             '.sheet-mask{position:absolute;inset:0;background:rgba(0,0,0,.85);}',
             '.sheet-panel{position:relative;z-index:1;width:min(1080px,94vw);max-height:86vh;display:flex;flex-direction:column;',
-            'background:var(--bg-light,#1a1a1e);color:var(--text,#f4f4f7);border:1px solid var(--border,rgba(255,255,255,.14));',
+            // ★★ 不透明化（用户 2026-11："表头上面还是漏字，这部分应该不透明"）：
+            //   主题里的 --bg-light / --bg 在"玻璃"风格下是半透明的，sticky 表头下滚过的行会透上来。
+            //   做法：先用一个**不透明底色**兜底，再把主题色当叠层铺上去 —— 观感仍是主题色，
+            //   但底下不透。面板与表头用同一套叠层，两者颜色才不会出现色带。
+            'background-color:#0f0f12;background-image:linear-gradient(var(--bg-light,#1a1a1e),var(--bg-light,#1a1a1e));',
+            'color:var(--text,#f4f4f7);border:1px solid var(--border,rgba(255,255,255,.14));',
             'border-radius:12px;box-shadow:0 18px 60px rgba(0,0,0,.5);overflow:hidden;}',
             '.sheet-head{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--border,rgba(255,255,255,.14));flex-wrap:wrap;}',
             '.sheet-titles{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto;}',
@@ -58,7 +63,9 @@
             //   会与滚动内容打架，行文字会"漏"到表头上方（用户 2026-11 报的现象）。
             '.sheet-table{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%;}',
             '.sheet-table th,.sheet-table td{border:1px solid var(--border,rgba(255,255,255,.14));padding:4px 7px;vertical-align:middle;text-align:center;}',
-            '.sheet-table thead th{position:sticky;top:0;z-index:2;background:var(--bg-light,#1a1a1e);font-weight:600;text-align:center;',
+            '.sheet-table thead th{position:sticky;top:0;z-index:2;font-weight:600;text-align:center;',
+            // ★ 与面板同一套"不透明底 + 主题色叠层"：这样表头既不透明，颜色又与面板一致（无色带）。
+            'background-color:#0f0f12;background-image:linear-gradient(var(--bg-light,#1a1a1e),var(--bg-light,#1a1a1e));',
             'border-top:1px solid var(--border,rgba(255,255,255,.28));border-bottom:1px solid var(--border,rgba(255,255,255,.28));}',
             '.sheet-table tr.sheet-total td{font-weight:700;}',
             // ★ 已售出/退回的行：灰化 + 删除线（不新开"已售出"列）
