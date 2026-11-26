@@ -1021,7 +1021,7 @@ try {
     await sleep(900);
 
     // ⑫-4 时间轴里的 5 条评级费（★ 用 data-type / 专属 class 定位，不再靠"文案里有没有评级费"）
-    const feeRows = await evaluate(`(()=>{
+    const feeRows = await evaluate(`(async()=>{
         const out = [];
         for (const it of document.querySelectorAll('.timeline-item')) {
             if (it.dataset.type !== 'fee') continue;
@@ -1029,12 +1029,22 @@ try {
             let d = ''; let p = it.previousElementSibling;
             while (p && !p.classList.contains('timeline-date-header')) p = p.previousElementSibling;
             if (p) d = (p.querySelector('.timeline-date-label')||{}).textContent || '';
-            const a = card.querySelector('a.timeline-fee-link');
+            // ★ 下载链接已经**移进小窗**（用户 2026-11："写一个小窗展示清单，下载接口写在小窗里面"）
+            //   ⇒ 这里先点开这一批的「查看清单」，把小窗里那个链接读出来。
+            //   断言强度一律不变（文案 / href / target / rel / 下划线 / 颜色 / HEAD 照旧验），
+            //   只是读取位置跟着 UI 走。读完关掉，避免影响下一条与后面的探针。
+            const view = card.querySelector('.timeline-fee-view');
+            let a = null;
+            if (view) {
+                view.click();
+                await new Promise(r => setTimeout(r, 1500));
+                const m = document.querySelector('.sheet-modal');
+                a = (m && !m.hidden) ? m.querySelector('a.sheet-dl') : null;
+            }
             // ★ 第二行用**字段**量：各字段是独立 <span class="fee-f">，分隔符由 CSS ::before 画，
             //   所以这里显式按字段取，不依赖分隔符是否进了 innerText。
-            //   ★ 口径（用户裁定）：第二行是 3 个 .fee-f（送评日期 / 单号 / 评级收费）
-            //     + 1 个 <a class="timeline-fee-link">（下载清单）。链接**故意**不是 .fee-f，
-            //     否则 .fee-f + .fee-f::before 会在「评级收费」和链接之间多画一个 ·。
+            //   ★ 口径（用户裁定）：第二行是 3 个 .fee-f（送评日期 / 单号 / 评级收费）。
+            //     下载链接已按用户要求移进小窗，不再挂在第二行（.fee-f + .fee-f::before 也就不必再避开它）。
             const fields = [...card.querySelectorAll('.timeline-fee-sub .fee-f')].map(e => e.textContent.trim());
             out.push({
                 pj: (fields[1] || '').replace('单号：', ''),
@@ -1060,8 +1070,12 @@ try {
                 linkText: a ? a.textContent.trim() : null,
                 linkDeco: a ? getComputedStyle(a).textDecorationLine : null,
                 linkColor: a ? getComputedStyle(a).color : null,
-                linkCursor: a ? getComputedStyle(a).cursor : null
+                linkCursor: a ? getComputedStyle(a).cursor : null,
+                viewText: view ? view.textContent.trim() : null,
+                viewUrl: view ? view.getAttribute('data-sheet-url') : null
             });
+            if (window.dshSheetView && typeof window.dshSheetView.close === 'function') window.dshSheetView.close();
+            await new Promise(r => setTimeout(r, 200));
         }
         return out;
     })()`);
@@ -1081,9 +1095,9 @@ try {
     // ★ 下面这条是**数据侧**的一致性（"这几批恰好是同一家公司"），按用户要求**降级成日志**：
     //   渲染正确与否已经由上面那条"逐条 = 数据里的 graderShort"钉住，公司名本身不该被写死。
     console.log(`      （日志）页面上出现的标签：${JSON.stringify([...new Set((feeRows || []).map(r => r.tag))])}`);
-    // ★ 第一行 DOM 顺序：评级费 → 标签（评级公司：ACG）→ 下载清单
-    ok((feeRows || []).every(r => /评级费[\s\S]*timeline-fee-tag[^>]*>评级公司：[\s\S]*?<\/span>[\s\S]*?下载清单/.test(r.html)),
-        '★ 第一行 DOM 顺序 = 评级费 → 圆角标签（评级公司：ACG）→ 下载清单');
+    // ★ 第一行 DOM 顺序：评级费 → 标签（评级公司：ACG）→ 查看清单（下载链接在小窗里）
+    ok((feeRows || []).every(r => /评级费[\s\S]*timeline-fee-tag[^>]*>评级公司：[\s\S]*?<\/span>[\s\S]*?查看清单/.test(r.html)),
+        '★ 第一行 DOM 顺序 = 评级费 → 圆角标签（评级公司：ACG）→ 查看清单');
     ok((feeRows || []).every(r => !/timeline-fee-grader/.test(r.html)),
         '不再有独立的「评级公司：」文字节点（前缀已经进标签里了）');
     ok((feeRows || []).every(r => r.itemClass.includes('timeline-item--fee') || r.cardClass.includes('timeline-card--fee')),
@@ -1115,10 +1129,10 @@ try {
     // ★ 第一行顺序：评级费 → 标签(评级公司：ACG) → 下载清单（链接**已经在第一行**）
     ok((feeRows || []).every(r => {
         const main = (r.html.match(/<div class="timeline-fee-main">([\s\S]*?)<\/div>/) || [])[1] || '';
-        return /评级费/.test(main) && /timeline-fee-tag/.test(main) && /下载清单/.test(main)
+        return /评级费/.test(main) && /timeline-fee-tag/.test(main) && /查看清单/.test(main)
             && main.indexOf('评级费') < main.indexOf('timeline-fee-tag')
-            && main.indexOf('timeline-fee-tag') < main.indexOf('下载清单');
-    }), '★ 第一行里 评级费 → 标签 → 下载清单 的先后顺序正确（链接在第一行）');
+            && main.indexOf('timeline-fee-tag') < main.indexOf('查看清单');
+    }), '★ 第一行里 评级费 → 标签 → 查看清单 的先后顺序正确（入口在第一行，下载链接已移入小窗）');
     ok((feeRows || []).every(r => !/timeline-fee-sub[\s\S]*?下载清单/.test(r.html)),
         '★ 第二行（.timeline-fee-sub）里**没有**「下载清单」（已经移到第一行）');
     // ★ 链接刻意不在 .fee-f 族里（否则 ::before 会在「评级收费」后面多画一个 ·）
@@ -1160,13 +1174,15 @@ try {
 
     // ⑫-4e ★「下载清单」链接：数据给了 listUrl，就必须是能打开的真链接
     //   （文案从「查看清单」改成「下载清单」—— 点开确实是下载，用户要求改）
-    ok((feeRows || []).every(r => r.linkText === '下载清单'), '每条都渲染出了「下载清单」链接');
+    ok((feeRows || []).every(r => r.viewText === '查看清单' && !!r.viewUrl),
+        `每条费用条目都有「查看清单」入口（实际 ${JSON.stringify((feeRows || []).map(r => r.viewText))}）`);
+    ok((feeRows || []).every(r => r.linkText === '下载清单'), '点开后小窗里有「下载清单」链接');
     ok((feeRows || []).every(r => r.linkHref === '../notecollection/readmes/image/grading_fee/' + r.fields[1].replace('单号：', '') + '.xlsx'),
         `href = 相对路径 ../notecollection/readmes/image/grading_fee/<PJ>.xlsx（实际 ${(feeRows || [])[0] && (feeRows || [])[0].linkHref}）`);
     ok((feeRows || []).every(r => r.linkTarget === '_blank'), 'target="_blank"（新窗口打开，与正文里的外链一致）');
     ok((feeRows || []).every(r => r.linkRel === 'noopener'), 'rel="noopener"（新窗口打开的既有约定）');
-    ok((feeRows || []).every(r => r.linkDeco === 'underline'),
-        `链接带下划线（与正文 <a> 一致；实际 ${(feeRows || [])[0] && (feeRows || [])[0].linkDeco}）`);
+    ok((feeRows || []).every(r => r.linkDeco === 'none'),
+        `链接**不带**下划线（用户 2026-11 口径："不要下划线"；实际 ${(feeRows || [])[0] && (feeRows || [])[0].linkDeco}）`);
     // ★ 与正文链接同色：正文里没有任何 a 的着色规则，靠浏览器对 color-scheme 的默认映射；
     //   所以比对"页面内正文示例 <a>"的实测色，而不是写死一个色值。
     const artLinkColor = await evaluate(`(()=>{
@@ -1178,13 +1194,30 @@ try {
         h.remove();
         return c;
     })()`);
-    ok(!!artLinkColor && (feeRows || []).every(r => r.linkColor === artLinkColor),
-        `★「下载清单」与正文行内链接同色（都是 ${artLinkColor}）`);
+    // ★ 链接搬进小窗后，"与正文行内链接同色"这条已经不适用（它不再坐在时间轴卡片里）。
+    //   改写成**面板内的可读性**判据（事实变更，不是松绑）：不是次要文字色，且与面板背景对比度 ≥ 3:1。
+    await evaluate(`(()=>{ const v = document.querySelector('.timeline-fee-view'); if (v) v.click(); return true; })()`);
+    await sleep(1800);
+    const sheetReadable = JSON.parse(await evaluate(`(()=>{
+        const m = document.querySelector('.sheet-modal'); if (!m || m.hidden) return JSON.stringify({ open:false });
+        const a = m.querySelector('a.sheet-dl'), panel = m.querySelector('.sheet-panel'), sub = m.querySelector('.sheet-sub');
+        if (!a || !panel) return JSON.stringify({ open:false });
+        const lum = (c) => { const p = String(c).match(/[\\d.]+/g).map(Number).slice(0,3).map(v => { v/=255; return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4); }); return 0.2126*p[0]+0.7152*p[1]+0.0722*p[2]; };
+        const fg = getComputedStyle(a).color, bg = getComputedStyle(panel).backgroundColor;
+        const L1 = lum(fg), L2 = lum(bg);
+        return JSON.stringify({ open:true, ratio: Math.round(((Math.max(L1,L2)+0.05)/(Math.min(L1,L2)+0.05))*100)/100,
+            fg: fg, sub: sub ? getComputedStyle(sub).color : '' });
+    })()`));
+    ok(sheetReadable.open && sheetReadable.ratio >= 3 && sheetReadable.fg !== sheetReadable.sub,
+        `★ 小窗里的下载链接在面板上可读（对比度 ${sheetReadable.ratio}:1，颜色 ${sheetReadable.fg} ≠ 次要文字 ${sheetReadable.sub}；正文链接色 ${artLinkColor} 已不适用）`);
+    await evaluate(`(()=>{ if (window.dshSheetView) window.dshSheetView.close(); return true; })()`);
+    // ★ 链接搬进小窗后不在 DOM 里常驻（小窗是单例、每批点开一次）⇒ 改从上面逐批收集到的 href 做 HEAD，
+    //   验的还是同一件事：每个批次的清单地址都真的能取到（不是 404）。
     const linkStatus = JSON.parse(await evaluate(`(async()=>{
         const out = [];
-        for (const a of document.querySelectorAll('.timeline-item[data-type="fee"] .timeline-fee-link')) {
-            const r = await fetch(a.href, { method: 'HEAD' });
-            out.push([a.getAttribute('href'), r.status]);
+        for (const h of ${JSON.stringify((feeRows || []).map(r => r.linkHref))}) {
+            const r = await fetch(h, { method: 'HEAD' });
+            out.push([h, r.status]);
         }
         return JSON.stringify(out);
     })()`));
@@ -1197,10 +1230,10 @@ try {
     //   这里在真实 DOM 上按同一条判据（有 listUrl 才有 <a>）复核一遍页面形状。
     const linkShape = JSON.parse(await evaluate(`(()=>{
         const cards = [...document.querySelectorAll('.timeline-card--fee')].filter(c => c.getBoundingClientRect().width > 1);
-        const withLink = cards.filter(c => c.querySelector('.timeline-fee-link')).length;
+        const withLink = cards.filter(c => c.querySelector('.timeline-fee-view')).length;
         const cardsNoLink = cards.filter(c => c.querySelector('.timeline-fee-sub .fee-f:last-child') &&
-                                             /下载清单/.test(c.querySelector('.timeline-fee-sub .fee-f:last-child').textContent) &&
-                                             !c.querySelector('.timeline-fee-link')).length;
+                                             /查看清单/.test(c.querySelector('.timeline-fee-main').textContent) &&
+                                             !c.querySelector('.timeline-fee-view')).length;
         // ★ 底下这些查询也必须限定在**可见卡**（cards）里：页面上还有隐藏容器里的同构副本，
         //   不限定就会取到隐藏副本、拿到空串（这条曾经真的红过）。
         const emptyAnchors = cards.flatMap(c => [...c.querySelectorAll('a')]).filter(a => !a.getAttribute('href') || !a.textContent.trim()).length;
@@ -1210,8 +1243,8 @@ try {
                                 firstLineKids: cards.map(c => [...(c.querySelector('.timeline-fee-main')||{children:[]}).children].map(k => k.className + ':' + k.textContent.replace(/\\s+/g,' ').trim())) });
     })()`));
     ok(linkShape.cards === ENTRY_BATCHES.length && linkShape.withLink === ENTRY_BATCHES.length,
-        `${ENTRY_BATCHES.length} 张卡都有 listUrl ⇒ ${ENTRY_BATCHES.length} 个链接（实际 ${linkShape.withLink}/${linkShape.cards}）`);
-    ok(linkShape.cardsNoLink === 0, '没有"写着下载清单却没有链接"的卡片（不留空占位）');
+        `${ENTRY_BATCHES.length} 张卡都有 listUrl ⇒ ${ENTRY_BATCHES.length} 个「查看清单」入口（实际 ${linkShape.withLink}/${linkShape.cards}）`);
+    ok(linkShape.cardsNoLink === 0, '没有"写着查看清单却没有入口"的卡片（不留空占位）');
     ok(linkShape.emptyAnchors === 0, '没有 href 为空或文字为空的 <a>（不出死链）');
     ok(linkShape.lastFieldTexts.every(t => /^评级收费：/.test(t)),
         `第二行最后一项是「评级收费」（链接已经移到第一行；实际 ${JSON.stringify(linkShape.lastFieldTexts)}）`);
@@ -1219,21 +1252,21 @@ try {
         // ★ 期望值逐卡现算：卡片顺序 = feeRows 顺序 = ENTRY_BATCHES 顺序
         const wantFirst = (feeRows || []).map(r => {
             const sh = GRADERS_SHORT_OF(r.pj);
-            return '评级费' + (sh ? '评级公司：' + sh : '') + '下载清单';
+            return '评级费' + (sh ? '评级公司：' + sh : '') + '查看清单';
         });
         ok(wantFirst.length === linkShape.firstLine.length
             && JSON.stringify(linkShape.firstLine) === JSON.stringify(wantFirst),
-            `★ 第一行整体文字 = 「评级费」+（有短名就带「评级公司：X」）+「下载清单」（实际 ${JSON.stringify(linkShape.firstLine)}）`);
+            `★ 第一行整体文字 = 「评级费」+（有短名就带「评级公司：X」）+「查看清单」（实际 ${JSON.stringify(linkShape.firstLine)}）`);
     }
 
-    // ⑫-4f-2 ★「下载清单」必须用**普通字号**（用户反馈"几个字太大"）：
+    // ⑫-4f-2 ★「查看清单」入口必须用**普通字号**（用户当初反馈的是"几个字太大"）：
     //   它原来跟在大标题后面继承了 0.9rem。现在要求 = 第二行字段字号，且**小于**大标题。
-    //   ★ 用计算样式断言（不看 CSS 字面量），这样任何继承/层叠的意外都能抓到。
+    //   ★ 链接搬进小窗后，"这个位置上的元素"从 <a> 变成了入口按钮 —— 判据照旧施加在这个位置上。
     const fontSizeProbe = JSON.parse(await evaluate(`(()=>{
         const card = [...document.querySelectorAll('.timeline-card--fee')].find(c => c.offsetParent && c.getBoundingClientRect().width > 1);
         if (!card) return JSON.stringify({});
         const fs = (el) => el ? parseFloat(getComputedStyle(el).fontSize) : null;
-        const link = card.querySelector('.timeline-fee-link');
+        const link = card.querySelector('.timeline-fee-view');
         const title = card.querySelector('.timeline-fee-title');
         const tag = card.querySelector('.timeline-fee-tag');
         const sub = card.querySelector('.timeline-fee-sub');
@@ -1249,9 +1282,9 @@ try {
         });
     })()`));
     ok(fontSizeProbe.link === fontSizeProbe.fee,
-        `★「下载清单」字号 = 第二行字段字号（链接 ${fontSizeProbe.link}px vs 字段 ${fontSizeProbe.fee}px）`);
+        `★「查看清单」入口字号 = 第二行字段字号（入口 ${fontSizeProbe.link}px vs 字段 ${fontSizeProbe.fee}px）`);
     ok(fontSizeProbe.link < fontSizeProbe.title,
-        `★「下载清单」字号**小于**「评级费」大标题（${fontSizeProbe.link}px < ${fontSizeProbe.title}px）`);
+        `★「查看清单」入口字号**小于**「评级费」大标题（${fontSizeProbe.link}px < ${fontSizeProbe.title}px）`);
     // ★ 只要求"普通字号（= 第二行字段的 12px）、且小于大标题"；不比圆角标签更小
     //   （标签字号 0.68rem 是刻意的"角标"尺寸，链接没必要跟着缩到那么小）。
     ok(fontSizeProbe.mainAlign === 'baseline',

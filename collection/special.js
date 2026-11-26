@@ -1832,6 +1832,34 @@ function gradingFeeTotal() {
     return Math.round(sum * 10) / 10;
 }
 
+// 时间轴上「查看清单」的入口：把那批 xlsx 交给 sheet-view.js 的小窗（下载链接在小窗里）。
+// ★ 只搬数据、不做判断：参数全部从按钮的 data-* 来（渲染时就已经算好、且与台账口径同源），
+//   所以这里不需要再碰 gradingFeeData，也不会出现"小窗里的数字和条目上的不一致"。
+// ★ 小窗模块不在（脚本没加载）时静默返回：宁可什么都不发生，也不要抛错把 onclick 打断。
+function openFeeSheet(btn) {
+    if (!btn || !window.dshSheetView) return;
+    const url = btn.getAttribute('data-sheet-url') || '';
+    if (!url) return;
+    const pj = btn.getAttribute('data-sheet-pj') || '';
+    const sent = btn.getAttribute('data-sheet-sent') || '';
+    const fee = btn.getAttribute('data-sheet-fee') || '';
+    // ★ 清单内容直接来自台账数据文件里**抄好的** sheets（用户 2026-11："把表格里面的东西
+    //   手动搞出来放进小窗"）⇒ 小窗不联网、不解压，只画表。某批没抄到时 rows 为 null，
+    //   小窗会退回到"读 xlsx"的兜底路径（见 sheet-view.js）。
+    const ledger = (window.DATA_MAP && window.DATA_MAP['gradingFeeData']) || null;
+    const rows = (ledger && ledger.sheets && ledger.sheets[pj]) || null;
+    window.dshSheetView.open({
+        url: url,
+        rows: rows,
+        // ★ 抬头格式（用户 2026-11 给的样式）：
+        //     评级费清单（PJ20260615262532）
+        //     送评日期：2026年6月15日 | 合计：1602元
+        //   —— 单号进括号、两个字段用 " | " 分隔、"台账支出"改叫"合计"。
+        title: '评级费清单（' + pj + '）',
+        subtitle: [sent ? '送评日期：' + sent : '', fee ? '合计：' + fee : ''].filter(Boolean).join(' | ')
+    });
+}
+
 // ---------- 「裸币价」折算（用户裁定） ----------
 // 用户口径："我自己 data 里面录入的是**含评级费**的，你显示出来应该减掉评级费"，
 // 且"凡是自己送评的一律视为裸币送评，除了换壳的当作原始价格，也不算进评级费"。
@@ -2957,8 +2985,18 @@ function renderTimelineContent(config, opts) {
                     if (short) {
                         html += `<span class="timeline-fee-tag">评级公司：${escapeHtml(short)}</span>`;
                     }
+                    // ★ 入口从"直接下载"改成"站内小窗预览"（用户要求 2026-11："每次想查看都要下载
+                    //   比较麻烦，写一个小窗展示清单，下载接口写在小窗里面"）⇒ 这里只出「查看清单」，
+                    //   真正的下载链接由 sheet-view.js 的小窗承担。
+                    //   ★ listUrl 仍是唯一数据来源：缺字段就**连入口都不渲染**，不留空占位、不出死链。
+                    //   ★ 送评日期用上面已经算好的 sentStr（不再二次解析），支出用 priceText（= 支出口径）。
                     if (item.listUrl) {
-                        html += `<a class="timeline-fee-link" href="${escapeAttr(item.listUrl)}" target="_blank" rel="noopener">下载清单</a>`;
+                        html += `<button type="button" class="timeline-fee-view"`
+                            + ` data-sheet-url="${escapeAttr(item.listUrl)}"`
+                            + ` data-sheet-pj="${escapeAttr(version)}"`
+                            + ` data-sheet-sent="${escapeAttr(sentStr)}"`
+                            + ` data-sheet-fee="${escapeAttr(priceText)}"`
+                            + ` onclick="openFeeSheet(this)">查看清单</button>`;
                     }
                     html += `</div>`;
                     html += `<div class="timeline-fee-sub">`;
