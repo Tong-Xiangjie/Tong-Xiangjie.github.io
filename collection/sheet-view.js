@@ -76,13 +76,17 @@
             '.sheet-table th,.sheet-table td{border:0;border-right:1px solid var(--border,rgba(255,255,255,.14));',
             'border-bottom:1px solid var(--border,rgba(255,255,255,.14));padding:4px 7px;vertical-align:middle;text-align:center;}',
             '.sheet-table th:first-child,.sheet-table td:first-child{border-left:1px solid var(--border,rgba(255,255,255,.14));}',
-            '.sheet-table thead th{position:sticky;top:-10px;z-index:2;font-weight:600;text-align:center;',
-            'padding-top:14px;',
+            '.sheet-table thead th{position:sticky;top:-10px;z-index:2;font-weight:600;text-align:center;padding-top:4px;',
             // ★ 与面板同一套"不透明底 + 主题色叠层"：这样表头既不透明，颜色又与面板一致（无色带）。
             'background-color:#0f0f12;background-image:linear-gradient(var(--bg-light,#1a1a1e),var(--bg-light,#1a1a1e));',
             // 表头自己的上下框线（比格线略重）：滚起来它仍是一条完整的"表头带"
             'border-top:1px solid var(--border,rgba(255,255,255,.3));border-bottom:1px solid var(--border,rgba(255,255,255,.3));}',
             '.sheet-table tbody tr:last-child td{border-bottom:1px solid var(--border,rgba(255,255,255,.2));}',
+            // ★★ 只有**滚动时**才把表头加厚去盖那条缝（用户 2026-11 追问："这不是会让表格变形？"）：
+            //   静止时表头保持原样（4px 内边距），一旦滚动才加 10px —— 静态下不会有"表头变高、
+            //   缝隙翻倍"的观感变化；滚动时才向上长出来盖住内边距那条缝。
+            //   ★ top:-10px 一直挂着没关系：sticky 的偏移不影响布局，只在"贴住"时才生效。
+            '.sheet-body.sheet-scrolled .sheet-table thead th{padding-top:14px;}',
             '.sheet-table tr.sheet-total td{font-weight:700;}',
             // ★ 已售出/退回的行：灰化 + 删除线（不新开"已售出"列）
             '.sheet-table tr.sheet-sold td{color:var(--text-secondary,#9aa0a6);text-decoration:line-through;opacity:.75;}',
@@ -351,6 +355,19 @@
             scroll.innerHTML = r.html;
             scroll.hidden = false;
             msg.hidden = true;
+            // ★ 滚动时给滚动容器挂 .sheet-scrolled：表头这时才加厚去盖住内边距那条缝（静止时不变形）。
+            var body = m.querySelector('.sheet-body');
+            if (body) {
+                if (!body.__sheetScrollBound) {
+                    body.__sheetScrollBound = true;
+                    body.addEventListener('scroll', function () {
+                        if (body.scrollTop > 2) body.classList.add('sheet-scrolled');
+                        else body.classList.remove('sheet-scrolled');
+                    });
+                }
+                body.classList.remove('sheet-scrolled');   // 每次打开都从"未滚动"状态开始
+                body.scrollTop = 0;
+            }
             // ★ 滚动条用站里**自绘**的那套（scrollbar.js）：挂上 cscroll-host 后让它重新扫一遍，
             //   横向溢出也走同一个滑块 —— 原生条又粗又不跟主题（用户 2026-11 要求移植）。
             try { if (typeof window.refreshCustomScrollbars === 'function') window.refreshCustomScrollbars(); } catch (e) { }

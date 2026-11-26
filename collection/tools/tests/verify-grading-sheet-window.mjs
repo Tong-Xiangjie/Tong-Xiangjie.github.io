@@ -259,12 +259,25 @@ ok(sumProbe.gap !== null && sumProbe.gap >= 4,
 ok(parseFloat(sumProbe.borderTop) > 0 && parseFloat(sumProbe.borderBottom) > 0 && parseFloat(sumProbe.td2Right) > 0 && parseFloat(sumProbe.td2Left) === 0,
     `⑧ 框线画在格子上且不重叠：表头上下 ${sumProbe.borderTop}/${sumProbe.borderBottom}、第 2 格左 ${sumProbe.td2Left} 右 ${sumProbe.td2Right}`);
 // ★★ "表头上面露字"的正确解法：**保留** 10px 上内边距（用户 2026-11 明确"不应该直接删掉"），
-//   让 sticky 表头用 top:-10px + padding-top:14px **自己盖住那条缝** —— 缝被不透明的表头背景盖住，
-//   文字位置不变。判据：内边距仍是 10px、表头 computed top = -10px、padding-top ≥ 10px。
+//   让 sticky 表头**只在滚动时**向上长出来盖住那条缝 —— 静止时不改变表头高度（否则缝隙会翻倍，
+//   用户追问的"这不是会让表格变形？"指的就是这个）。判据：静止 padding-top=4px；滚动后 =14px。
 ok(sumProbe.bodyPadTop === '10px',
     `⑧ 滚动容器上内边距保留 10px（实际 ${sumProbe.bodyPadTop}）`);
-ok(sumProbe.thTop === '-10px' && parseFloat(sumProbe.thPadTop) >= 10,
-    `⑧ 表头向上盖住内边距那条缝（computed top=${sumProbe.thTop}、padding-top=${sumProbe.thPadTop}）`);
+ok(sumProbe.thTop === '-10px' && parseFloat(sumProbe.thPadTop) === 4,
+    `⑧ 静止时表头不变形（computed top=${sumProbe.thTop}、padding-top=${sumProbe.thPadTop}px）`);
+const scrolledProbe = await J(`var m = document.querySelector('.sheet-modal');
+  var b = m && m.querySelector('.sheet-body');
+  if (!b) return { ok:false };
+  b.scrollTop = 160;
+  await new Promise(r => setTimeout(r, 400));
+  var th = m.querySelector('.sheet-table thead th');
+  var cs = th ? getComputedStyle(th) : null;
+  var tr = th ? th.getBoundingClientRect() : null, br = b.getBoundingClientRect();
+  return { ok:true, cls: b.classList.contains('sheet-scrolled'), padTop: cs ? cs.paddingTop : '',
+    thTop: tr ? Math.round(tr.top) : null, bodyTop: Math.round(br.top),
+    covers: !!(tr && tr.top <= br.top) };`);
+ok(scrolledProbe.ok && scrolledProbe.cls && parseFloat(scrolledProbe.padTop) >= 10 && scrolledProbe.covers,
+    `⑧ 滚动后表头加厚并盖住那条缝（.sheet-scrolled=${scrolledProbe.cls}、padding-top=${scrolledProbe.padTop}、表头顶 ${scrolledProbe.thTop} ≤ 容器顶 ${scrolledProbe.bodyTop}）`);
 ok(sumProbe.soldTitle === '该藏品已售出，未入库',
     `⑨b 已售出行提示语 = "该藏品已售出，未入库"（实际 ${JSON.stringify(sumProbe.soldTitle)}）`);
 ok(sumProbe.soldCount >= 1 && sumProbe.soldCount < sumProbe.dataRows && sumProbe.soldDeco === 'line-through',
