@@ -57,6 +57,11 @@
             '.sheet-table th,.sheet-table td{border:1px solid var(--border,rgba(255,255,255,.14));padding:4px 7px;vertical-align:middle;text-align:center;}',
             '.sheet-table thead th{position:sticky;top:0;background:var(--bg,#111);font-weight:600;z-index:1;text-align:center;}',
             '.sheet-table tr.sheet-total td{font-weight:700;}',
+            // ★ 汇总块（合计那一行的小表 + 其后的文字行）：与明细表分隔开、整体居中。
+            '.sheet-sum{margin:10px 0 4px;padding-top:8px;border-top:1px dashed var(--border,rgba(255,255,255,.18));}',
+            '.sheet-sum-table{margin:0 auto;width:auto;min-width:min(520px,80%);}',
+            '.sheet-sum-title{text-align:center;font-size:12.5px;color:var(--text-secondary,#9aa0a6);margin:8px 0 2px;}',
+            '.sheet-sum-line{text-align:center;font-size:12.5px;margin:2px 0;}',
             '.sheet-foot{padding:9px 14px;border-top:1px solid var(--border,rgba(255,255,255,.14));font-size:12px;color:var(--text-secondary,#9aa0a6);text-align:center;}',
             // ★ 时间轴上那个入口按钮（special.js 里渲染的「查看清单」）。
             //   它占的是原来「下载清单」链接的位置，所以字号/对齐必须跟原来一样是**普通字号 12px**：
@@ -170,22 +175,47 @@
             maxCol = Math.max(maxCol, row.length);
             keep.push(row);
         }
+        // ★ 汇总块**另起一段**（用户 2026-11："合计 / 评级费原价 / 代理折扣9折 / 实收合计
+        //   这些应该另起一张表放在下面，或者直接写在下面不用表格"）。
+        //   判据：首个首格是「合计」的行起、到底部都算汇总块 —— 明细表只留列名行 + 条目行。
+        var sumAt = -1;
+        for (var s = 1; s < keep.length; s++) {
+            if (keep[s] && String(keep[s][0] || '').trim() === '合计') { sumAt = s; break; }
+        }
+        var detail = sumAt > 0 ? keep.slice(0, sumAt) : keep;
+        var summary = sumAt > 0 ? keep.slice(sumAt) : [];
+
         var html = '<table class="sheet-table"><thead><tr>';
-        var head = keep[0] || [];
+        var head = detail[0] || [];
         for (var c = 0; c < maxCol; c++) html += '<th>' + esc(head[c] || '') + '</th>';
         html += '</tr></thead><tbody>';
-        for (var r = 1; r < keep.length; r++) {
-            var rr = keep[r];
+        for (var r = 1; r < detail.length; r++) {
+            var rr = detail[r];
             if (!rr) continue;
-            var isTotal = (rr[0] || '').indexOf('合计') === 0;
-            html += '<tr' + (isTotal ? ' class="sheet-total"' : '') + '>';
+            html += '<tr>';
             for (var c2 = 0; c2 < maxCol; c2++) {
-                var v = rr[c2] || '';
-                html += '<td' + (/^-?[\d,.]+$/.test(v) ? ' class="sheet-num"' : '') + '>' + esc(v) + '</td>';
+                html += '<td>' + esc(rr[c2] || '') + '</td>';
             }
             html += '</tr>';
         }
         html += '</tbody></table>';
+        // 汇总：合计行仍是一张**只有一行**的小表（列位与上面一致，方便对读），
+        // 其后的"评级费原价 / 代理折扣9折 / 实收合计"写成不带表格的居中文字。
+        if (summary.length) {
+            html += '<div class="sheet-sum">';
+            html += '<table class="sheet-table sheet-sum-table"><tbody>';
+            var tr = summary[0] || [];
+            html += '<tr class="sheet-total">';
+            for (var c3 = 0; c3 < maxCol; c3++) html += '<td>' + esc(tr[c3] || '') + '</td>';
+            html += '</tr></tbody></table>';
+            for (var k = 1; k < summary.length; k++) {
+                var cells = (summary[k] || []).filter(Boolean);
+                if (!cells.length) continue;
+                if (cells.length === 1) html += '<div class="sheet-sum-title">' + esc(cells[0]) + '</div>';
+                else html += '<div class="sheet-sum-line">' + cells.map(esc).join('　') + '</div>';
+            }
+            html += '</div>';
+        }
         return { html: html, rowCount: keep.filter(Boolean).length };
     }
     function esc(s) {

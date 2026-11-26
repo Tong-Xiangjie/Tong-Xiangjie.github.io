@@ -157,7 +157,8 @@ const opened = await J(`var el = document.querySelector('.timeline-fee-view[data
   var m = document.querySelector('.sheet-modal');
   var vis = m ? getComputedStyle(m).display !== 'none' && m.getBoundingClientRect().height > 40 : false;
   var tbl = m ? m.querySelector('table') : null;
-  var cells = tbl ? [].map.call(tbl.querySelectorAll('td,th'), c => (c.innerText||'').replace(/\\s+/g,' ').trim()).filter(Boolean) : [];
+  // ★ 值取自**整张小窗**（合计现在在下面那张小表里，只取第一张表会漏）
+  var cells = m ? [].map.call(m.querySelectorAll('td,th'), c => (c.innerText||'').replace(/\\s+/g,' ').trim()).filter(Boolean) : [];
   // ★ 还要拿到**二维**表格：只查"值在不在"抓不住错位（用户 2026-11 就是这么发现我抄错列的）。
   var grid2d = tbl ? [].map.call(tbl.querySelectorAll('tr'), tr =>
       [].map.call(tr.querySelectorAll('th,td'), c => (c.innerText||'').replace(/\\s+/g,' ').trim())) : [];
@@ -190,9 +191,12 @@ for (const head of ['序号', '编码', '实际费用']) {
 {
     const PRIV = /客户\s*[：:]|微信|订单号|电话|1\d{10}/;
     const hIdx = grid.findIndex(r => (r || []).some(v => String(v).includes('编码')));
-    const want = grid.slice(hIdx)
+    // ★ 只比**明细表**那部分：合计行及其后的汇总已按用户要求另起一段，不在第一张表里。
+    const allRows = grid.slice(hIdx)
         .map(r => Array.from(r || [], v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim()).map(v => (PRIV.test(v) ? '' : v)))
-        .filter(r => r.some(Boolean) && !r.some(v => PRIV.test(v)))
+        .filter(r => r.some(Boolean) && !r.some(v => PRIV.test(v)));
+    const cutAt = allRows.findIndex(r => String(r[0] || '').trim() === '合计');
+    const want = (cutAt > 0 ? allRows.slice(0, cutAt) : allRows)
         .map(r => { const c = r.slice(); while (c.length && c[c.length - 1] === '') c.pop(); return c; });
     const got = (opened.grid2d || []).map(r => { const c = r.slice(); while (c.length && c[c.length - 1] === '') c.pop(); return c; });
     const bad = [];
@@ -206,6 +210,24 @@ for (const head of ['序号', '编码', '实际费用']) {
     ok(want.length > 5 && bad.length === 0,
         `③b 逐格逐列都和原 xlsx 对齐（比了 ${want.length} 行；错位/错值 ${bad.length} 处${bad.length ? '：' + bad.join(' | ') : ''}）`);
 }
+
+// ③c 汇总块另起一段（合计那行单独一张小表 + 后面的汇总行是**不带表格**的文字）
+const sumProbe = await J(`var m = document.querySelector('.sheet-modal');
+  if (!m || m.hidden) return { open:false };
+  var tbls = m.querySelectorAll('table');
+  var first = tbls[0];
+  var sumBox = m.querySelector('.sheet-sum');
+  return { open:true, tables: tbls.length,
+    detailHasTotal: first ? /合计/.test(first.textContent) : null,
+    sumText: sumBox ? sumBox.textContent.replace(/\\s+/g,' ').trim() : '',
+    sumLines: m.querySelectorAll('.sheet-sum-line').length,
+    sumTitle: m.querySelectorAll('.sheet-sum-title').length };`);
+ok(sumProbe.open && sumProbe.tables >= 2 && sumProbe.detailHasTotal === false,
+    `③c 汇总另起一段：明细表里没有「合计」（表数 ${sumProbe.tables}，明细含合计=${sumProbe.detailHasTotal}）`);
+ok(/合计/.test(sumProbe.sumText) && /评级费原价/.test(sumProbe.sumText) && /实收合计/.test(sumProbe.sumText),
+    `③c 汇总段里有合计/评级费原价/实收合计（${JSON.stringify(sumProbe.sumText.slice(0, 80))}）`);
+ok(sumProbe.sumLines >= 2 && sumProbe.sumTitle >= 1,
+    `③c 汇总行是**不带表格**的文字行（文字行 ${sumProbe.sumLines} 条、小标题 ${sumProbe.sumTitle} 条）`);
 
 // ④b 抬头格式（用户 2026-11 指定的样式）
 ok(opened.titleText === '评级费清单（' + target.pj + '）',
