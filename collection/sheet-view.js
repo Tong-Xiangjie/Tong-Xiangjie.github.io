@@ -50,16 +50,21 @@
             '.sheet-close{flex:0 0 auto;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;',
             'border:0;background:rgba(0,0,0,.55);color:#fff;}',
             '.sheet-close:hover{background:rgba(0,0,0,.8);}',
-            '.sheet-body{flex:1 1 auto;min-height:60px;overflow:auto;padding:0 14px 6px;}',
+            '.sheet-body{flex:1 1 auto;min-height:60px;overflow:auto;padding:10px 14px 8px;}',
             '.sheet-msg{padding:18px 4px;font-size:13px;color:var(--text-secondary,#9aa0a6);line-height:1.7;text-align:center;}',
-            '.sheet-table{border-collapse:collapse;font-size:12.5px;width:100%;}',
-            // ★ 数据居中（用户 2026-11："数据居中"）：表头与单元格一律居中，不再左对齐/数字右对齐。
+            // ★ 表头（列名行）：与窗口抬头拉开距离（.sheet-body 的上内边距）、
+            //   **上下都有框线**、背景用面板同色（不是更深的 var(--bg)，否则会出现一条色带）。
+            //   ★ 另外把 border-collapse 从 collapse 改成 separate：collapse 下 sticky 单元格的边框
+            //   会与滚动内容打架，行文字会"漏"到表头上方（用户 2026-11 报的现象）。
+            '.sheet-table{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%;}',
             '.sheet-table th,.sheet-table td{border:1px solid var(--border,rgba(255,255,255,.14));padding:4px 7px;vertical-align:middle;text-align:center;}',
-            '.sheet-table thead th{position:sticky;top:0;background:var(--bg,#111);font-weight:600;z-index:1;text-align:center;}',
+            '.sheet-table thead th{position:sticky;top:0;z-index:2;background:var(--bg-light,#1a1a1e);font-weight:600;text-align:center;',
+            'border-top:1px solid var(--border,rgba(255,255,255,.28));border-bottom:1px solid var(--border,rgba(255,255,255,.28));}',
             '.sheet-table tr.sheet-total td{font-weight:700;}',
-            // ★ 汇总块（合计那一行的小表 + 其后的文字行）：与明细表分隔开、整体居中。
+            // ★ 已售出/退回的行：灰化 + 删除线（不新开"已售出"列）
+            '.sheet-table tr.sheet-sold td{color:var(--text-secondary,#9aa0a6);text-decoration:line-through;opacity:.75;}',
+            // ★ 汇总说明（合计已在表里，这里只剩不带表格的文字行）
             '.sheet-sum{margin:10px 0 4px;padding-top:8px;border-top:1px dashed var(--border,rgba(255,255,255,.18));}',
-            '.sheet-sum-table{margin:0 auto;width:auto;min-width:min(520px,80%);}',
             '.sheet-sum-title{text-align:center;font-size:12.5px;color:var(--text-secondary,#9aa0a6);margin:8px 0 2px;}',
             '.sheet-sum-line{text-align:center;font-size:12.5px;margin:2px 0;}',
             '.sheet-foot{padding:9px 14px;border-top:1px solid var(--border,rgba(255,255,255,.14));font-size:12px;color:var(--text-secondary,#9aa0a6);text-align:center;}',
@@ -70,7 +75,19 @@
             '.timeline-fee-view{font:inherit;font-size:12px;line-height:1.4;padding:0;margin:0;background:none;border:0;',
             'color:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:2px;}',
             '.timeline-fee-view:hover{opacity:.85;}',
-            '@media (max-width:560px){.sheet-panel{width:96vw;max-height:88vh;}.sheet-title{font-size:14px;}}'
+            '@media (max-width:560px){.sheet-panel{width:96vw;max-height:88vh;}.sheet-title{font-size:14px;}}',
+            // ★ 出现 / 消失动画（用户 2026-11 要求）：与站里其它弹窗一个调子 —— 遮罩淡入淡出、
+            //   面板轻微上浮缩放。关窗时先加 .sheet-hide 播完再 hidden（见 close()）。
+            //   尊重 prefers-reduced-motion：用户在系统里关了动效就一点都不动。
+            '@keyframes sheetIn{from{opacity:0}to{opacity:1}}',
+            '@keyframes sheetOut{from{opacity:1}to{opacity:0}}',
+            '@keyframes sheetPanelIn{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}',
+            '@keyframes sheetPanelOut{from{opacity:1;transform:none}to{opacity:0;transform:translateY(8px) scale(.99)}}',
+            '.sheet-modal{animation:sheetIn .22s var(--ease-out,ease-out);}',
+            '.sheet-panel{animation:sheetPanelIn .22s var(--ease-out,ease-out);}',
+            '.sheet-modal.sheet-hide{animation:sheetOut .18s var(--ease-in,ease-in) forwards;}',
+            '.sheet-modal.sheet-hide .sheet-panel{animation:sheetPanelOut .18s var(--ease-in,ease-in) forwards;}',
+            '@media (prefers-reduced-motion: reduce){.sheet-modal,.sheet-modal .sheet-panel{animation:none !important;}}'
         ].join('');
         var s = document.createElement('style');
         s.id = STYLE_ID; s.textContent = css;
@@ -157,6 +174,20 @@
         // 与台账数据文件同一口径：不显示清单里的客户信息
         return /客户\s*[：:]|微信|订单号|电话|1\d{10}/.test(text || '');
     }
+    // 藏品里真实存在的证书号集合（用于把"已售出/退回"的行灰化 + 删除线，判据与台账同源）
+    // ★ 用 special.js 的 gradingCopyIndex()（cert → 藏品），而不是自己去翻 collectAllCopies()：
+    //   后者返回的副本上没有 copyId 字段，第一版据此判断 ⇒ **15 行全被标成已售出**（实测踩到）。
+    // ★ 拿不到索引时**什么都不标**（宁可不灰，也不能把在手的藏品误标成已售出）。
+    function liveCertSet() {
+        try {
+            if (typeof window.gradingCopyIndex !== 'function') return null;
+            var idx = window.gradingCopyIndex() || {};
+            var set = {};
+            for (var k in idx) if (Object.prototype.hasOwnProperty.call(idx, k)) set[String(k)] = 1;
+            return set;
+        } catch (e) { return null; }
+    }
+
     function render(grid) {
         // ★ 抄录是**逐格照抄**（数据侧保持忠实），显示时再去掉清单顶部那行大标题
         //   （"爱藏评级费用清单" —— 用户 2026-11："这个表头可以不要"）。
@@ -175,41 +206,44 @@
             maxCol = Math.max(maxCol, row.length);
             keep.push(row);
         }
-        // ★ 汇总块**另起一段**（用户 2026-11："合计 / 评级费原价 / 代理折扣9折 / 实收合计
-        //   这些应该另起一张表放在下面，或者直接写在下面不用表格"）。
-        //   判据：首个首格是「合计」的行起、到底部都算汇总块 —— 明细表只留列名行 + 条目行。
+        // ★ 合计行**回到明细表最后一行**（用户 2026-11 改回来："这个还是写在上面表格的最下面一行吧"）；
+        //   合计**之后**的行（"爱藏评级费用明细 / 评级费原价 / 代理折扣9折 / 实收合计"）仍是不带表格的文字行。
         var sumAt = -1;
         for (var s = 1; s < keep.length; s++) {
             if (keep[s] && String(keep[s][0] || '').trim() === '合计') { sumAt = s; break; }
         }
-        var detail = sumAt > 0 ? keep.slice(0, sumAt) : keep;
-        var summary = sumAt > 0 ? keep.slice(sumAt) : [];
+        var tail = sumAt > 0 ? keep.slice(sumAt + 1) : [];
+
+        // ★ 已售出/退回的行：不新开一列，直接**灰化 + 删除线**（用户 2026-11）。
+        //   判据与台账口径同源：这一行的编码（证书号）在藏品里找不到 ⇒ 已售出/退回。
+        var live = liveCertSet();
 
         var html = '<table class="sheet-table"><thead><tr>';
-        var head = detail[0] || [];
+        var head = keep[0] || [];
         for (var c = 0; c < maxCol; c++) html += '<th>' + esc(head[c] || '') + '</th>';
         html += '</tr></thead><tbody>';
-        for (var r = 1; r < detail.length; r++) {
-            var rr = detail[r];
+        // ★ 表里只画到「合计」那一行为止（含）；合计之后的行走下面的文字块 ——
+        //   否则它们会被画两遍（表里一遍、文字里一遍）。
+        var rowEnd = sumAt > 0 ? sumAt + 1 : keep.length;
+        for (var r = 1; r < rowEnd; r++) {
+            var rr = keep[r];
             if (!rr) continue;
-            html += '<tr>';
+            var isTotal = String(rr[0] || '').trim() === '合计';
+            var cert = '';
+            for (var q = 0; q < rr.length; q++) { if (/^\d{6,}$/.test(String(rr[q] || '').trim())) { cert = String(rr[q]).trim(); break; } }
+            var sold = !isTotal && !!cert && !!live && !live[cert];
+            html += '<tr' + (isTotal ? ' class="sheet-total"' : (sold ? ' class="sheet-sold" title="已售出 / 退回（不在藏品数据里）"' : '')) + '>';
             for (var c2 = 0; c2 < maxCol; c2++) {
                 html += '<td>' + esc(rr[c2] || '') + '</td>';
             }
             html += '</tr>';
         }
         html += '</tbody></table>';
-        // 汇总：合计行仍是一张**只有一行**的小表（列位与上面一致，方便对读），
-        // 其后的"评级费原价 / 代理折扣9折 / 实收合计"写成不带表格的居中文字。
-        if (summary.length) {
+        // 汇总说明：合计已在表里，这里只剩不带表格的文字行。
+        if (tail.length) {
             html += '<div class="sheet-sum">';
-            html += '<table class="sheet-table sheet-sum-table"><tbody>';
-            var tr = summary[0] || [];
-            html += '<tr class="sheet-total">';
-            for (var c3 = 0; c3 < maxCol; c3++) html += '<td>' + esc(tr[c3] || '') + '</td>';
-            html += '</tr></tbody></table>';
-            for (var k = 1; k < summary.length; k++) {
-                var cells = (summary[k] || []).filter(Boolean);
+            for (var k = 0; k < tail.length; k++) {
+                var cells = (tail[k] || []).filter(Boolean);
                 if (!cells.length) continue;
                 if (cells.length === 1) html += '<div class="sheet-sum-title">' + esc(cells[0]) + '</div>';
                 else html += '<div class="sheet-sum-line">' + cells.map(esc).join('　') + '</div>';
@@ -250,9 +284,19 @@
         return modal;
     }
     function close() {
-        if (!modal || modal.hidden) return;
-        modal.hidden = true;
-        try { if (lastFocus && lastFocus.focus) lastFocus.focus(); } catch (e) { }
+        if (!modal || modal.hidden || modal.classList.contains('sheet-hide')) return;
+        // ★ 先播消失动画再加 hidden（用户 2026-11 要求出现/消失都有动画）；
+        //   只用一次计时器收口，动画时长与 CSS 里 .sheet-hide 的 .18s 对齐。
+        modal.classList.add('sheet-hide');
+        var done = false;
+        var finish = function () {
+            if (done) return;
+            done = true;
+            modal.classList.remove('sheet-hide');
+            modal.hidden = true;
+            try { if (lastFocus && lastFocus.focus) lastFocus.focus(); } catch (e) { }
+        };
+        setTimeout(finish, 200);
     }
     function open(opts) {
         opts = opts || {};
@@ -267,6 +311,7 @@
         msg.textContent = '正在读取清单…';
         scroll.hidden = true;
         scroll.innerHTML = '';
+        m.classList.remove('sheet-hide');   // 上一次关闭可能刚播完动画，去掉这个类再打开
         m.hidden = false;
         // ★ 首选路径（用户 2026-11 口径）：内容已经**抄进台账数据**（grading_fee.js 的 sheets），
         //   这里只管画表 —— 不联网、不解压、没有失败面。

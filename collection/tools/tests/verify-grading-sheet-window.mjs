@@ -191,12 +191,13 @@ for (const head of ['序号', '编码', '实际费用']) {
 {
     const PRIV = /客户\s*[：:]|微信|订单号|电话|1\d{10}/;
     const hIdx = grid.findIndex(r => (r || []).some(v => String(v).includes('编码')));
-    // ★ 只比**明细表**那部分：合计行及其后的汇总已按用户要求另起一段，不在第一张表里。
+    // ★ 合计行按用户要求回到明细表最后一行 ⇒ 期望值截到**含合计**为止；
+    //   合计之后的汇总行不在表里（它们是不带表格的文字），由 ③c 单独验。
     const allRows = grid.slice(hIdx)
         .map(r => Array.from(r || [], v => String(v == null ? '' : v).replace(/\s+/g, ' ').trim()).map(v => (PRIV.test(v) ? '' : v)))
         .filter(r => r.some(Boolean) && !r.some(v => PRIV.test(v)));
-    const cutAt = allRows.findIndex(r => String(r[0] || '').trim() === '合计');
-    const want = (cutAt > 0 ? allRows.slice(0, cutAt) : allRows)
+    const totalAt = allRows.findIndex(r => String(r[0] || '').trim() === '合计');
+    const want = (totalAt >= 0 ? allRows.slice(0, totalAt + 1) : allRows)
         .map(r => { const c = r.slice(); while (c.length && c[c.length - 1] === '') c.pop(); return c; });
     const got = (opened.grid2d || []).map(r => { const c = r.slice(); while (c.length && c[c.length - 1] === '') c.pop(); return c; });
     const bad = [];
@@ -211,23 +212,40 @@ for (const head of ['序号', '编码', '实际费用']) {
         `③b 逐格逐列都和原 xlsx 对齐（比了 ${want.length} 行；错位/错值 ${bad.length} 处${bad.length ? '：' + bad.join(' | ') : ''}）`);
 }
 
-// ③c 汇总块另起一段（合计那行单独一张小表 + 后面的汇总行是**不带表格**的文字）
+// ③c 合计回到明细表最后一行；其余汇总行仍是不带表格的文字；表头几何 + 已售出样式 + 动画
 const sumProbe = await J(`var m = document.querySelector('.sheet-modal');
   if (!m || m.hidden) return { open:false };
-  var tbls = m.querySelectorAll('table');
-  var first = tbls[0];
+  var tbl = m.querySelector('table');
+  var trs = tbl ? tbl.querySelectorAll('tbody tr') : [];
+  var lastTr = trs.length ? trs[trs.length - 1] : null;
   var sumBox = m.querySelector('.sheet-sum');
-  return { open:true, tables: tbls.length,
-    detailHasTotal: first ? /合计/.test(first.textContent) : null,
+  var th = tbl ? tbl.querySelector('thead th') : null;
+  var head = m.querySelector('.sheet-head');
+  var thCs = th ? getComputedStyle(th) : null;
+  var thRect = th ? th.getBoundingClientRect() : null, headRect = head ? head.getBoundingClientRect() : null;
+  var soldRows = m.querySelectorAll('tr.sheet-sold');
+  var soldCs = soldRows.length ? getComputedStyle(soldRows[0].querySelector('td')) : null;
+  return { open:true, tables: m.querySelectorAll('table').length,
+    lastRowIsTotal: !!(lastTr && /^合计/.test(lastTr.textContent.trim())),
+    tailLines: m.querySelectorAll('.sheet-sum-line').length, tailTitle: m.querySelectorAll('.sheet-sum-title').length,
     sumText: sumBox ? sumBox.textContent.replace(/\\s+/g,' ').trim() : '',
-    sumLines: m.querySelectorAll('.sheet-sum-line').length,
-    sumTitle: m.querySelectorAll('.sheet-sum-title').length };`);
-ok(sumProbe.open && sumProbe.tables >= 2 && sumProbe.detailHasTotal === false,
-    `③c 汇总另起一段：明细表里没有「合计」（表数 ${sumProbe.tables}，明细含合计=${sumProbe.detailHasTotal}）`);
-ok(/合计/.test(sumProbe.sumText) && /评级费原价/.test(sumProbe.sumText) && /实收合计/.test(sumProbe.sumText),
-    `③c 汇总段里有合计/评级费原价/实收合计（${JSON.stringify(sumProbe.sumText.slice(0, 80))}）`);
-ok(sumProbe.sumLines >= 2 && sumProbe.sumTitle >= 1,
-    `③c 汇总行是**不带表格**的文字行（文字行 ${sumProbe.sumLines} 条、小标题 ${sumProbe.sumTitle} 条）`);
+    gap: (thRect && headRect) ? Math.round(thRect.top - headRect.bottom) : null,
+    borderTop: thCs ? thCs.borderTopWidth : null, borderBottom: thCs ? thCs.borderBottomWidth : null,
+    collapse: tbl ? getComputedStyle(tbl).borderCollapse : null,
+    anim: getComputedStyle(m).animationName,
+    soldCount: soldRows.length, soldDeco: soldCs ? soldCs.textDecorationLine : '', soldColor: soldCs ? soldCs.color : '',
+    dataRows: trs.length };`);
+ok(sumProbe.open && sumProbe.tables === 1 && sumProbe.lastRowIsTotal,
+    `③c「合计」回到明细表最后一行（表数 ${sumProbe.tables}、末行是合计=${sumProbe.lastRowIsTotal}）`);
+ok(sumProbe.tailLines >= 2 && sumProbe.tailTitle >= 1 && /评级费原价/.test(sumProbe.sumText),
+    `③c 其余汇总行仍是不带表格的文字（文字行 ${sumProbe.tailLines}、小标题 ${sumProbe.tailTitle}）`);
+ok(sumProbe.gap !== null && sumProbe.gap >= 4,
+    `⑧ 列名表头与窗口抬头之间有余量（${sumProbe.gap}px）`);
+ok(parseFloat(sumProbe.borderTop) > 0 && parseFloat(sumProbe.borderBottom) > 0 && sumProbe.collapse === 'separate',
+    `⑧ 表头上下都有框线（上 ${sumProbe.borderTop} / 下 ${sumProbe.borderBottom}，border-collapse=${sumProbe.collapse}）`);
+ok(sumProbe.soldCount >= 1 && sumProbe.soldCount < sumProbe.dataRows && sumProbe.soldDeco === 'line-through',
+    `⑨ 已售出/退回的行灰化 + 删除线，且**不是全标**（${sumProbe.soldCount}/${sumProbe.dataRows} 行，text-decoration=${sumProbe.soldDeco}，色 ${sumProbe.soldColor}）`);
+ok(sumProbe.anim && sumProbe.anim !== 'none', `⑩ 小窗出现时有动画（animation-name=${sumProbe.anim}）`);
 
 // ④b 抬头格式（用户 2026-11 指定的样式）
 ok(opened.titleText === '评级费清单（' + target.pj + '）',
@@ -246,9 +264,13 @@ ok(!rows.some(r => r.text.indexOf('下载清单') >= 0),
 // ⑤ 能关掉（★ 必须先确认小窗真的开过：否则 display='gone' 会**空过**）
 ok(opened.clicked && opened.visible, `⑤ 前提：小窗确实开着（${opened.visible}）`);
 const closed = await J(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await new Promise(r => setTimeout(r, 60));
+  var m0 = document.querySelector('.sheet-modal');
+  var hiding = m0 ? m0.classList.contains('sheet-hide') : false;
   await new Promise(r => setTimeout(r, 900));
   var m = document.querySelector('.sheet-modal');
-  return { display: m ? getComputedStyle(m).display : 'gone' };`);
+  return { display: m ? getComputedStyle(m).display : 'gone', hiding: hiding };`);
+ok(closed.hiding, '⑩ Esc 关闭时先挂上 .sheet-hide（播消失动画）');
 ok(closed.display === 'none' || closed.display === 'gone', `⑤ Esc 能关掉小窗（display=${closed.display}）`);
 
 // ★★ ⑤ 之后小窗是**关着**的，后面 ⑥⑦ 的几何探针必须重新打开再量 ——
