@@ -223,19 +223,24 @@ const sumProbe = await J(`var m = document.querySelector('.sheet-modal');
   var th = tbl ? tbl.querySelector('thead th') : null;
   var head = m.querySelector('.sheet-head');
   var thCs = th ? getComputedStyle(th) : null;
-  var thRect = th ? th.getBoundingClientRect() : null, headRect = head ? head.getBoundingClientRect() : null;
+  var thRect = th ? th.getBoundingClientRect() : null;
+  var subEl = m.querySelector('.sheet-sub');
+  var subRect = subEl ? subEl.getBoundingClientRect() : null;
+  var headRect = head ? head.getBoundingClientRect() : null;
   var soldRows = m.querySelectorAll('tr.sheet-sold');
   var soldCs = soldRows.length ? getComputedStyle(soldRows[0].querySelector('td')) : null;
   return { open:true, tables: m.querySelectorAll('table').length,
     lastRowIsTotal: !!(lastTr && /^合计/.test(lastTr.textContent.trim())),
     tailLines: m.querySelectorAll('.sheet-sum-line').length, tailTitle: m.querySelectorAll('.sheet-sum-title').length,
     sumText: sumBox ? sumBox.textContent.replace(/\\s+/g,' ').trim() : '',
-    gap: (thRect && headRect) ? Math.round(thRect.top - headRect.bottom) : null,
+    gap: (thRect && subRect) ? Math.round(thRect.top - subRect.bottom) : ((thRect && headRect) ? Math.round(thRect.top - headRect.bottom) : null),
     borderTop: thCs ? thCs.borderTopWidth : null, borderBottom: thCs ? thCs.borderBottomWidth : null,
     thLeft: thCs ? thCs.borderLeftWidth : null, thBg: thCs ? thCs.backgroundColor : '', thBgImg: thCs ? thCs.backgroundImage : '',
     tblBorder: tbl ? getComputedStyle(tbl).borderTopWidth : null,
-    tdRight: (function () { var td = tbl ? tbl.querySelector('tbody td') : null; return td ? getComputedStyle(td).borderRightWidth : null; })(),
-    tdLeft: (function () { var td = tbl ? tbl.querySelector('tbody td') : null; return td ? getComputedStyle(td).borderLeftWidth : null; })(),
+    bodyPadTop: (function () { var b = m.querySelector('.sheet-body'); return b ? getComputedStyle(b).paddingTop : ''; })(),
+    thTop: thCs ? thCs.top : '', thPadTop: thCs ? thCs.paddingTop : '',
+    td2Right: (function () { var td = tbl ? tbl.querySelector('tbody td:nth-child(2)') : null; return td ? getComputedStyle(td).borderRightWidth : null; })(),
+    td2Left: (function () { var td = tbl ? tbl.querySelector('tbody td:nth-child(2)') : null; return td ? getComputedStyle(td).borderLeftWidth : null; })(),
     soldTitle: soldRows.length ? (soldRows[0].getAttribute('title') || '') : '',
     collapse: tbl ? getComputedStyle(tbl).borderCollapse : null,
     anim: getComputedStyle(m).animationName,
@@ -249,8 +254,17 @@ ok(sumProbe.gap !== null && sumProbe.gap >= 4,
     `⑧ 列名表头与窗口抬头之间有余量（${sumProbe.gap}px）`);
 // ★ 线不能重（用户 2026-11 看到"两条竖向的平行细线"）：格子只画右边/下边，外框画在 table 上，
 //   所以"格子的左边框 = 0"、外框 > 0 —— 任何一条线都只有 1px。
-ok(parseFloat(sumProbe.tblBorder) > 0 && parseFloat(sumProbe.thLeft) === 0 && parseFloat(sumProbe.tdLeft) === 0 && parseFloat(sumProbe.tdRight) > 0,
-    `⑧ 框线不重叠：外框 ${sumProbe.tblBorder}、格子左边框 ${sumProbe.tdLeft}/表头左边框 ${sumProbe.thLeft}、格线在右边 ${sumProbe.tdRight}`);
+// ★ 框线：画在**单元格自己身上**（画在 table 上的外框会随表格滚走 ⇒ sticky 表头看起来缺边、
+//   与表格竖线对不齐，用户 2026-11 报的正是这个）。同时"格与格之间只有一条线"（不重叠）。
+ok(parseFloat(sumProbe.borderTop) > 0 && parseFloat(sumProbe.borderBottom) > 0 && parseFloat(sumProbe.td2Right) > 0 && parseFloat(sumProbe.td2Left) === 0,
+    `⑧ 框线画在格子上且不重叠：表头上下 ${sumProbe.borderTop}/${sumProbe.borderBottom}、第 2 格左 ${sumProbe.td2Left} 右 ${sumProbe.td2Right}`);
+// ★★ "表头上面露字"的正确解法：**保留** 10px 上内边距（用户 2026-11 明确"不应该直接删掉"），
+//   让 sticky 表头用 top:-10px + padding-top:14px **自己盖住那条缝** —— 缝被不透明的表头背景盖住，
+//   文字位置不变。判据：内边距仍是 10px、表头 computed top = -10px、padding-top ≥ 10px。
+ok(sumProbe.bodyPadTop === '10px',
+    `⑧ 滚动容器上内边距保留 10px（实际 ${sumProbe.bodyPadTop}）`);
+ok(sumProbe.thTop === '-10px' && parseFloat(sumProbe.thPadTop) >= 10,
+    `⑧ 表头向上盖住内边距那条缝（computed top=${sumProbe.thTop}、padding-top=${sumProbe.thPadTop}）`);
 ok(sumProbe.soldTitle === '该藏品已售出，未入库',
     `⑨b 已售出行提示语 = "该藏品已售出，未入库"（实际 ${JSON.stringify(sumProbe.soldTitle)}）`);
 ok(sumProbe.soldCount >= 1 && sumProbe.soldCount < sumProbe.dataRows && sumProbe.soldDeco === 'line-through',

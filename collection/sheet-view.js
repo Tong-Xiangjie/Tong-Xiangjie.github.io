@@ -55,27 +55,34 @@
             '.sheet-close{flex:0 0 auto;width:34px;height:34px;border-radius:50%;cursor:pointer;font-size:18px;line-height:1;',
             'border:0;background:rgba(0,0,0,.55);color:#fff;}',
             '.sheet-close:hover{background:rgba(0,0,0,.8);}',
+            // ★ 上内边距**保留**（10px 是抬头与表格之间该有的呼吸；用户 2026-11 明确"不应该直接删掉"）。
+            //   露字的真正原因是：sticky 表头贴在滚动口顶部(top:0)，而这段 10px 是滚动容器自己的内边距
+            //   ⇒ 它是一扇"窗口"，滚过的行会从那里露出来。
+            //   解法：让表头**自己向上盖住这条缝** —— th 用 top:-10px 把盒子顶到缝里，
+            //   同时把 padding-top 加到 14px，文字位置不变（仍是缝下方 4px），
+            //   而 th 的背景是**不透明**的，缝于是被一块与面板同色的实底盖住。
             '.sheet-body{flex:1 1 auto;min-height:60px;overflow:auto;padding:10px 14px 8px;}',
             '.sheet-msg{padding:18px 4px;font-size:13px;color:var(--text-secondary,#9aa0a6);line-height:1.7;text-align:center;}',
             // ★ 表头（列名行）：与窗口抬头拉开距离（.sheet-body 的上内边距）、
             //   **上下都有框线**、背景用面板同色（不是更深的 var(--bg)，否则会出现一条色带）。
             //   ★ 另外把 border-collapse 从 collapse 改成 separate：collapse 下 sticky 单元格的边框
             //   会与滚动内容打架，行文字会"漏"到表头上方（用户 2026-11 报的现象）。
-            // ★ 单边线（用户 2026-11："表头有些框线显示出来是两条竖向的平行细线"）：
-            //   separate 布局下每个格子都带 border ⇒ 相邻两格各自画一条 ⇒ 看起来是"两条平行细线"。
-            //   改成：外框画在 table 上，格与格之间只画**右边 + 下边**，最后一列/最后一行不画，
-            //   于是任何一条线都只有 1px、不再重叠。
-            '.sheet-table{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%;',
-            'border:1px solid var(--border,rgba(255,255,255,.2));}',
+            // ★★ 框线全部画在**单元格自己身上**（不再画在 table 上）：
+            //   画在 table 上的外框会随表格一起滚走，于是 sticky 表头看起来"缺边、和表格的竖线对不齐"。
+            //   现在：每格只画右边 + 下边（不重叠、不会出现两条平行细线），
+            //   每行首格补左边、末格补右边、表头补上边、末行补下边 ⇒ 表头自己也带完整外框，
+            //   滚到哪儿都对得齐。
+            '.sheet-table{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%;border:0;}',
             '.sheet-table th,.sheet-table td{border:0;border-right:1px solid var(--border,rgba(255,255,255,.14));',
             'border-bottom:1px solid var(--border,rgba(255,255,255,.14));padding:4px 7px;vertical-align:middle;text-align:center;}',
-            '.sheet-table th:last-child,.sheet-table td:last-child{border-right:0;}',
-            '.sheet-table tbody tr:last-child td{border-bottom:0;}',
-            '.sheet-table thead th{position:sticky;top:0;z-index:2;font-weight:600;text-align:center;',
+            '.sheet-table th:first-child,.sheet-table td:first-child{border-left:1px solid var(--border,rgba(255,255,255,.14));}',
+            '.sheet-table thead th{position:sticky;top:-10px;z-index:2;font-weight:600;text-align:center;',
+            'padding-top:14px;',
             // ★ 与面板同一套"不透明底 + 主题色叠层"：这样表头既不透明，颜色又与面板一致（无色带）。
             'background-color:#0f0f12;background-image:linear-gradient(var(--bg-light,#1a1a1e),var(--bg-light,#1a1a1e));',
-            // 表头的上下框线都比格线略重，形成"表头带"（上边与 table 外框重合、只画一次）
-            'border-bottom:1px solid var(--border,rgba(255,255,255,.3));}',
+            // 表头自己的上下框线（比格线略重）：滚起来它仍是一条完整的"表头带"
+            'border-top:1px solid var(--border,rgba(255,255,255,.3));border-bottom:1px solid var(--border,rgba(255,255,255,.3));}',
+            '.sheet-table tbody tr:last-child td{border-bottom:1px solid var(--border,rgba(255,255,255,.2));}',
             '.sheet-table tr.sheet-total td{font-weight:700;}',
             // ★ 已售出/退回的行：灰化 + 删除线（不新开"已售出"列）
             '.sheet-table tr.sheet-sold td{color:var(--text-secondary,#9aa0a6);text-decoration:line-through;opacity:.75;}',
