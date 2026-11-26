@@ -61,12 +61,21 @@
             //   **上下都有框线**、背景用面板同色（不是更深的 var(--bg)，否则会出现一条色带）。
             //   ★ 另外把 border-collapse 从 collapse 改成 separate：collapse 下 sticky 单元格的边框
             //   会与滚动内容打架，行文字会"漏"到表头上方（用户 2026-11 报的现象）。
-            '.sheet-table{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%;}',
-            '.sheet-table th,.sheet-table td{border:1px solid var(--border,rgba(255,255,255,.14));padding:4px 7px;vertical-align:middle;text-align:center;}',
+            // ★ 单边线（用户 2026-11："表头有些框线显示出来是两条竖向的平行细线"）：
+            //   separate 布局下每个格子都带 border ⇒ 相邻两格各自画一条 ⇒ 看起来是"两条平行细线"。
+            //   改成：外框画在 table 上，格与格之间只画**右边 + 下边**，最后一列/最后一行不画，
+            //   于是任何一条线都只有 1px、不再重叠。
+            '.sheet-table{border-collapse:separate;border-spacing:0;font-size:12.5px;width:100%;',
+            'border:1px solid var(--border,rgba(255,255,255,.2));}',
+            '.sheet-table th,.sheet-table td{border:0;border-right:1px solid var(--border,rgba(255,255,255,.14));',
+            'border-bottom:1px solid var(--border,rgba(255,255,255,.14));padding:4px 7px;vertical-align:middle;text-align:center;}',
+            '.sheet-table th:last-child,.sheet-table td:last-child{border-right:0;}',
+            '.sheet-table tbody tr:last-child td{border-bottom:0;}',
             '.sheet-table thead th{position:sticky;top:0;z-index:2;font-weight:600;text-align:center;',
             // ★ 与面板同一套"不透明底 + 主题色叠层"：这样表头既不透明，颜色又与面板一致（无色带）。
             'background-color:#0f0f12;background-image:linear-gradient(var(--bg-light,#1a1a1e),var(--bg-light,#1a1a1e));',
-            'border-top:1px solid var(--border,rgba(255,255,255,.28));border-bottom:1px solid var(--border,rgba(255,255,255,.28));}',
+            // 表头的上下框线都比格线略重，形成"表头带"（上边与 table 外框重合、只画一次）
+            'border-bottom:1px solid var(--border,rgba(255,255,255,.3));}',
             '.sheet-table tr.sheet-total td{font-weight:700;}',
             // ★ 已售出/退回的行：灰化 + 删除线（不新开"已售出"列）
             '.sheet-table tr.sheet-sold td{color:var(--text-secondary,#9aa0a6);text-decoration:line-through;opacity:.75;}',
@@ -239,7 +248,7 @@
             var cert = '';
             for (var q = 0; q < rr.length; q++) { if (/^\d{6,}$/.test(String(rr[q] || '').trim())) { cert = String(rr[q]).trim(); break; } }
             var sold = !isTotal && !!cert && !!live && !live[cert];
-            html += '<tr' + (isTotal ? ' class="sheet-total"' : (sold ? ' class="sheet-sold" title="已售出 / 退回（不在藏品数据里）"' : '')) + '>';
+            html += '<tr' + (isTotal ? ' class="sheet-total"' : (sold ? ' class="sheet-sold" title="该藏品已售出，未入库"' : '')) + '>';
             for (var c2 = 0; c2 < maxCol; c2++) {
                 html += '<td>' + esc(rr[c2] || '') + '</td>';
             }

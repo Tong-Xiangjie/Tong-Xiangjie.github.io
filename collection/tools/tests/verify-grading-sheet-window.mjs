@@ -231,7 +231,11 @@ const sumProbe = await J(`var m = document.querySelector('.sheet-modal');
     sumText: sumBox ? sumBox.textContent.replace(/\\s+/g,' ').trim() : '',
     gap: (thRect && headRect) ? Math.round(thRect.top - headRect.bottom) : null,
     borderTop: thCs ? thCs.borderTopWidth : null, borderBottom: thCs ? thCs.borderBottomWidth : null,
-    thBg: thCs ? thCs.backgroundColor : '', thBgImg: thCs ? thCs.backgroundImage : '',
+    thLeft: thCs ? thCs.borderLeftWidth : null, thBg: thCs ? thCs.backgroundColor : '', thBgImg: thCs ? thCs.backgroundImage : '',
+    tblBorder: tbl ? getComputedStyle(tbl).borderTopWidth : null,
+    tdRight: (function () { var td = tbl ? tbl.querySelector('tbody td') : null; return td ? getComputedStyle(td).borderRightWidth : null; })(),
+    tdLeft: (function () { var td = tbl ? tbl.querySelector('tbody td') : null; return td ? getComputedStyle(td).borderLeftWidth : null; })(),
+    soldTitle: soldRows.length ? (soldRows[0].getAttribute('title') || '') : '',
     collapse: tbl ? getComputedStyle(tbl).borderCollapse : null,
     anim: getComputedStyle(m).animationName,
     soldCount: soldRows.length, soldDeco: soldCs ? soldCs.textDecorationLine : '', soldColor: soldCs ? soldCs.color : '',
@@ -242,8 +246,12 @@ ok(sumProbe.tailLines >= 2 && sumProbe.tailTitle >= 1 && /评级费原价/.test(
     `③c 其余汇总行仍是不带表格的文字（文字行 ${sumProbe.tailLines}、小标题 ${sumProbe.tailTitle}）`);
 ok(sumProbe.gap !== null && sumProbe.gap >= 4,
     `⑧ 列名表头与窗口抬头之间有余量（${sumProbe.gap}px）`);
-ok(parseFloat(sumProbe.borderTop) > 0 && parseFloat(sumProbe.borderBottom) > 0 && sumProbe.collapse === 'separate',
-    `⑧ 表头上下都有框线（上 ${sumProbe.borderTop} / 下 ${sumProbe.borderBottom}，border-collapse=${sumProbe.collapse}）`);
+// ★ 线不能重（用户 2026-11 看到"两条竖向的平行细线"）：格子只画右边/下边，外框画在 table 上，
+//   所以"格子的左边框 = 0"、外框 > 0 —— 任何一条线都只有 1px。
+ok(parseFloat(sumProbe.tblBorder) > 0 && parseFloat(sumProbe.thLeft) === 0 && parseFloat(sumProbe.tdLeft) === 0 && parseFloat(sumProbe.tdRight) > 0,
+    `⑧ 框线不重叠：外框 ${sumProbe.tblBorder}、格子左边框 ${sumProbe.tdLeft}/表头左边框 ${sumProbe.thLeft}、格线在右边 ${sumProbe.tdRight}`);
+ok(sumProbe.soldTitle === '该藏品已售出，未入库',
+    `⑨b 已售出行提示语 = "该藏品已售出，未入库"（实际 ${JSON.stringify(sumProbe.soldTitle)}）`);
 ok(sumProbe.soldCount >= 1 && sumProbe.soldCount < sumProbe.dataRows && sumProbe.soldDeco === 'line-through',
     `⑨ 已售出/退回的行灰化 + 删除线，且**不是全标**（${sumProbe.soldCount}/${sumProbe.dataRows} 行，text-decoration=${sumProbe.soldDeco}，色 ${sumProbe.soldColor}）`);
 // ★ 表头必须**真正不透明**：玻璃主题下 --bg-light 是半透明的，只靠它铺底会透出下面滚过的行
