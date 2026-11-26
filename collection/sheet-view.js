@@ -190,6 +190,10 @@
         // 与台账数据文件同一口径：不显示清单里的客户信息
         return /客户\s*[：:]|微信|订单号|电话|1\d{10}/.test(text || '');
     }
+    // ★ 清单里那些"手写备注列"不搬进小窗（用户 2026-11："'此张已售出'这样的东西就不要单开一列
+    //   写进去了"）：已售出与否已经由行的灰化 + 删除线表达，不需要再来一列文字。
+    //   显示时把这类单元格清空，整列随之为空 ⇒ 上面裁行尾空列时它自然消失（数据文件仍逐格照抄）。
+    var NOTE_COL = /此张已售出|已售出|已入库|不在手上|已出手/;
     // 藏品里真实存在的证书号集合（用于把"已售出/退回"的行灰化 + 删除线，判据与台账同源）
     // ★ 用 special.js 的 gradingCopyIndex()（cert → 藏品），而不是自己去翻 collectAllCopies()：
     //   后者返回的副本上没有 copyId 字段，第一版据此判断 ⇒ **15 行全被标成已售出**（实测踩到）。
@@ -215,7 +219,9 @@
         }
         var maxCol = 0, keep = [];
         for (var i = 0; i < g.length; i++) {
-            var row = g[i].filter(function (v) { return !isPrivate(v); });
+            var row = g[i].filter(function (v) { return !isPrivate(v); }).map(function (v) { return NOTE_COL.test(v) ? '' : v; });
+            // ★ 行尾空列（含刚被清掉的备注列）直接裁掉 ⇒ 那一列整列为空、自然不再出现。
+            while (row.length && !row[row.length - 1]) row.pop();
             var has = false;
             for (var j = 0; j < row.length; j++) if (row[j]) has = true;
             if (!has) { keep.push(null); continue; }

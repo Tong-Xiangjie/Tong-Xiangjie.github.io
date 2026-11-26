@@ -166,6 +166,7 @@ const opened = await J(`var el = document.querySelector('.timeline-fee-view[data
   var tEl = m ? m.querySelector('.sheet-title') : null, sEl = m ? m.querySelector('.sheet-sub') : null;
   return { clicked:true, hashBefore: before, hashAfter: location.hash, visible: vis,
     rowCount: tbl ? tbl.querySelectorAll('tr').length : 0, cells: cells, grid2d: grid2d,
+    cols: grid2d.length ? Math.max.apply(null, grid2d.map(r => r.length)) : 0,
     certRows: cells.filter(v => /^27\\d{6}$/.test(v)).length,
     linkHref: a ? a.getAttribute('href') : '', linkText: a ? a.innerText.trim() : '',
     linkTarget: a ? a.getAttribute('target') : '', linkRel: a ? a.getAttribute('rel') : '',
@@ -266,6 +267,11 @@ const thAlpha = (() => {
 ok(thAlpha === 1 && /linear-gradient/.test(sumProbe.thBgImg || ''),
     `⑧ 表头背景**不透明**（backgroundColor=${sumProbe.thBg}，alpha=${thAlpha}；叠层=${/linear-gradient/.test(sumProbe.thBgImg || '')}）`);
 ok(sumProbe.anim && sumProbe.anim !== 'none', `⑩ 小窗出现时有动画（animation-name=${sumProbe.anim}）`);
+
+ok(!/此张已售出/.test((opened.cells || []).join('|')),
+    `③d 手写备注列（"此张已售出"）不再进小窗（表里 ${(opened.cells || []).filter(v => /已售出/.test(v)).length} 处）`);
+ok(opened.cols === 12,
+    `③d 表宽 = 12 列（备注列整列为空后已被裁掉；实际 ${opened.cols}）`);
 
 // ④b 抬头格式（用户 2026-11 指定的样式）
 ok(opened.titleText === '评级费清单（' + target.pj + '）',
