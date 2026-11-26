@@ -39,7 +39,7 @@ const republic_cibcData = {
                             issueDate: "民国十年九月十五日（1921年9月15日）",
                             withdrawnDate: "实际未发行",
                             size: "",
-                            condition: "暂未评级",
+                            condition: "ACG 60E",
                             price: "650元",
                             purchaseDate: "2026年11月1日",
                             krause: "S253r",

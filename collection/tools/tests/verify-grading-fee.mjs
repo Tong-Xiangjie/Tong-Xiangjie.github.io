@@ -13,7 +13,7 @@
 //     ⑥ 换壳行（现算挑出 reholder: true 的那行）**照录入计**（它匹配得上 copyId，未售出）；
 //     ⑦ 每批同时有"表格实收（留档）"与"未售出部分（支出）"两套合计，两者都断言；
 //     ⑧ 台账只精简存 cert + 两个金额，展示文字**从藏品记录按 copyId 取**；
-//     ⑨ 评级费不是藏品：藏品总数仍 396 件，均价/评级/年代统计/价格清单都不受影响；
+//     ⑨ 评级费不是藏品：藏品总数（现为 432 件）里没有台账，均价/评级/年代统计/价格清单都不受影响；
 //     ⑩ 台账分类**不进导航**，但数据照常加载、统计照常可用。
 //
 // ★★ 本用例**不手抄任何期望值**（2026-11 收口）：EXPECT / SOLD_CERTS / SHEET_EXPECT / XLSX_SHA /
@@ -68,7 +68,7 @@ const G = JSON.parse(sctx.__g);
 // 【本用例的所有"期望值"一律**从数据现算**，不再手抄常量】
 //   三个互相独立的数据源，交叉对账（谁都不是"第二份手抄期望值"）：
 //     ① notecollection/data/grading_fee.js        —— 台账（人手维护）；
-//     ② notecollection/readmes/image/grading_fee/PJ*.xlsx —— 5 份原始清单；
+//     ② notecollection/readmes/image/grading_fee/PJ*.xlsx —— 6 份原始清单；
 //     ③ collection/data/**（由 data-loader 的 walkTree 走一遍）—— 真实藏品的 copyId。
 //   判据（用户裁定）：
 //     · items[] 里留下的行 = 清单里**匹配得上藏品 copyId**的行（未售出）；
@@ -1279,8 +1279,12 @@ try {
     // 说明台账的日期键与藏品的写法不一致了（会冒出两个同名分组头），立刻红出来。
     ok(wantIdx.length === ENTRY_DATES.length,
         `${ENTRY_DATES.length} 个付款日期都出现在日期分组头里（实际 ${wantIdx.length} 个：${wantIdx.join(', ')}）`);
-    ok(wantIdx.every(p => p > 0 && p < isoOrder.length - 1),
-        `它们都夹在藏品日期之间、没有被单独排到某一段（位置 ${wantIdx.join(', ')} / 共 ${isoOrder.length} 组）`);
+    // ★ 末位例外：最新一条付款日期可以是**未来**的（批次 6 落在 2026-12-01，晚于最后一次藏品
+    //   购买），它自然排在最末、后面没有藏品 —— 这不是"被单独排到某一段"。所以只要求"不在第 0 位"，
+    //   且最多一条落在末位（早先"每条都必须严格夹在中间"的期望已被事实推翻）。
+    const interiorCnt = wantIdx.filter(p => p > 0 && p < isoOrder.length - 1).length;
+    ok(wantIdx.every(p => p > 0) && interiorCnt >= ENTRY_DATES.length - 1,
+        `它们都夹在藏品日期之间、没有被单独排到某一段（位置 ${wantIdx.join(', ')} / 共 ${isoOrder.length} 组；未来付款那条可以落在末位）`);
 
     // ★ 同名分组头去重：这 5 个日期上如果一个"评级费组"和一个"藏品组"并排出现，
     //   页面上就会看到两个一样的日期标题。分组键必须和藏品那侧完全一致，这里把它钉住。
@@ -1291,8 +1295,8 @@ try {
     // 而是各自落在藏品日期流中间 —— 前后都有其他（藏品）日期分组。
     const hasBefore = wantIdx.filter(p => p > 0).length;
     const hasAfter = wantIdx.filter(p => p < isoOrder.length - 1).length;
-    ok(hasBefore === ENTRY_DATES.length && hasAfter === ENTRY_DATES.length,
-        `${ENTRY_DATES.length} 条的前后都有藏品日期分组（前面有内容 ${hasBefore}/${ENTRY_DATES.length}，后面有内容 ${hasAfter}/${ENTRY_DATES.length}）`);
+    ok(hasBefore === ENTRY_DATES.length && hasAfter >= ENTRY_DATES.length - 1,
+        `${ENTRY_DATES.length} 条的前后都有藏品日期分组（前面有内容 ${hasBefore}/${ENTRY_DATES.length}，后面有内容 ${hasAfter}/${ENTRY_DATES.length}；最新一条未来付款后面可以没有）`);
 
     // ★ 与同日藏品"同组"的确认：在 5 个付款日期里，凡是当天也有藏品的，
     //   那一天的组里必须同时有评级费条目和藏品条目（证明是合并成一组、而不是并列两组）。
