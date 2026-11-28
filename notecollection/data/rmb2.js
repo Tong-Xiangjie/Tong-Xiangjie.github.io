@@ -90,6 +90,23 @@ const rmb2Data = {
                             img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/122-2.jpg",
                             depositOnlyDate: ""
                         },{
+                            copyId: 20213933,
+                            year: 1981,
+                            version: "ⅠⅡⅢ",
+                            bank: "中国人民银行",
+                            condition: "ACG 66E",
+                            price: "12元",
+                            purchaseDate: "2026年11月28日",
+                            issueDate: "1981年7月15日",
+                            withdrawnDate: "2007年4月1日",
+                            wmk: "无水印/Without Watermark",
+                            size: "90mm*42.5mm",
+                            krause: "860b.2",
+                            remark: "大三冠；纪念冠 | 这张虽然是纪念冠，但它不是随着分币八连体同时发行的。",
+                            img1: "https://tong-xiangjie.github.io/notecollection/image/rmb2/20213933-1.jpg",
+                            img2: "https://tong-xiangjie.github.io/notecollection/image/rmb2/20213933-2.jpg",
+                            depositOnlyDate: ""
+                        },{
                             copyId: 17046959,
                             year: 1981,
                             version: "ⅤⅩ",
